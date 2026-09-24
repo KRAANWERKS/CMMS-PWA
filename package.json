@@ -1,0 +1,19 @@
+{
+  "name": "cmms-pwa",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm dev:pwa",
+    "dev:pwa": "pnpm --filter technician-pwa run dev",
+    "build": "pnpm build:pwa",
+    "build:pwa": "pnpm --filter technician-pwa run build",
+    "preview": "pnpm --filter technician-pwa run preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  }
+}
