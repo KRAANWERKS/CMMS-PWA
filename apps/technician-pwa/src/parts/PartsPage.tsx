@@ -8,12 +8,13 @@ import { CMMSLoadingState, CMMSErrorState, CMMSEmptyState } from '@cmms/ui'
 export default function PartsPage() {
   const [search, setSearch] = useState('')
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isPending, fetchStatus, error } = useQuery({
     queryKey: ['spare-parts'],
     queryFn: () => sparePartService.getSpareParts({ pageSize: 100 }),
     staleTime: 10 * 60 * 1000,
   })
 
+  if (isPending && fetchStatus === 'paused') return <CMMSErrorState message="You're offline and this hasn't been saved on this device yet. Reconnect to load it." />
   if (isLoading) return <CMMSLoadingState />
   if (error) return <CMMSErrorState message="Failed to load parts" />
 

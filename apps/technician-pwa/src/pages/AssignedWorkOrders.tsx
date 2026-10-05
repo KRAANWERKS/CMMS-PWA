@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Badge,
   Group,
@@ -15,7 +15,7 @@ import {
   IconClipboardList,
   IconClock,
 } from '@tabler/icons-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { workOrderService } from '@cmms/api-client'
 import { CMMSLoadingState, CMMSErrorState } from '@cmms/ui'
@@ -40,6 +40,7 @@ const statusIcon: Record<string, typeof IconClock> = {
 export function AssignedWorkOrders() {
   const navigate = useNavigate()
   const { currentSiteId, currentSite } = useTechnicianSite()
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
 
   const openQuery = useQuery({
@@ -67,7 +68,17 @@ export function AssignedWorkOrders() {
     staleTime: 2 * 60 * 1000,
   })
 
+  // Save each listed work order's detail so it can be opened offline
+  const listedIds = (openQuery.data?.items ?? []).map(wo => wo.id).join(',')
+  useEffect(() => {
+    if (!listedIds || !navigator.onLine) return
+    for (const id of listedIds.split(',')) {
+      void queryClient.prefetchQuery({ queryKey: ['work-order', id], queryFn: () => workOrderService.getWorkOrderById(id) })
+    }
+  }, [listedIds, queryClient])
+
   if (!currentSiteId) return <CMMSLoadingState />
+  if (openQuery.isPending && openQuery.fetchStatus === 'paused') return <CMMSErrorState message="You're offline and this hasn't been saved on this device yet. Reconnect to load it." />
   if (openQuery.isLoading || completedQuery.isLoading) return <CMMSLoadingState />
   if (openQuery.error || completedQuery.error) {
     return <CMMSErrorState message="Failed to load assigned work orders. Check CMMS connectivity and try again." />
@@ -92,21 +103,21 @@ export function AssignedWorkOrders() {
       </div>
 
       <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xs">
-        <Paper p="sm" radius={6} withBorder>
-          <Group gap={6}>
-            <IconClipboardList size={18} />
+        <Paper p="md" radius={6} withBorder>
+          <Group gap="md" wrap="nowrap">
+            <IconClipboardList size={22} />
             <div>
-              <Text size="xs" c="dimmed">Open</Text>
-              <Text size="lg" fw={750}>{openTotal}</Text>
+              <Text size="xs" c="dimmed" mb={2}>Open</Text>
+              <Text size="xl" fw={750} lh={1.1}>{openTotal}</Text>
             </div>
           </Group>
         </Paper>
-        <Paper p="sm" radius={6} withBorder>
-          <Group gap={6}>
-            <IconCircleCheck size={18} />
+        <Paper p="md" radius={6} withBorder>
+          <Group gap="md" wrap="nowrap">
+            <IconCircleCheck size={22} />
             <div>
-              <Text size="xs" c="dimmed">Completed</Text>
-              <Text size="lg" fw={750}>{completedTotal}</Text>
+              <Text size="xs" c="dimmed" mb={2}>Completed</Text>
+              <Text size="xl" fw={750} lh={1.1}>{completedTotal}</Text>
             </div>
           </Group>
         </Paper>

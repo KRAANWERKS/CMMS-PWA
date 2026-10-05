@@ -18,10 +18,16 @@ const Loading = () => (
   </Center>
 )
 
+// Dev-only UI preview: run `VITE_BYPASS_AUTH=true pnpm dev` to skip login
+const BYPASS_AUTH = import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH === 'true'
+
 function TechnicianRoute() {
+  if (BYPASS_AUTH) return <MobileLayout />
   const { data: user, isLoading, error } = useQuery({ queryKey: ['current-user'], queryFn: authService.me, retry: false, staleTime: 60_000 })
   if (isLoading) return <Loading />
-  if (error || !user) return <Navigate to="/login" replace />
+  // Keep the saved session visible offline; only a real 401 (or no saved user) sends you to login
+  const unauthorized = (error as { response?: { status?: number } } | null)?.response?.status === 401
+  if (!user || unauthorized) return <Navigate to="/login" replace />
   if (!user.roles.includes('TECHNICIAN')) return <Navigate to="/login" replace />
   return <MobileLayout />
 }

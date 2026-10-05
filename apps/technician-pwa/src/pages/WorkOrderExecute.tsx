@@ -87,6 +87,7 @@ export function WorkOrderExecute() {
     window.setTimeout(() => { document.getElementById('finish-work')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); completionNotesRef.current?.focus() }, 0)
   }, [canComplete, currentTask])
 
+  if (query.isPending && query.fetchStatus === 'paused') return <CMMSErrorState message="You're offline and this hasn't been saved on this device yet. Reconnect to load it." />
   if (query.isLoading) return <CMMSLoadingState />
   if (query.error) return <CMMSErrorState message={getApiError(query.error, 'Failed to load work order')} />
   if (!wo) return <CMMSErrorState message="Work order not found" />

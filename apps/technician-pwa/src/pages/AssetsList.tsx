@@ -9,12 +9,13 @@ export default function AssetsList() {
   const [search, setSearch] = useState('')
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isPending, fetchStatus, error } = useQuery({
     queryKey: ['assets'],
     queryFn: () => assetService.getAssets({ pageSize: 500 }),
     staleTime: 10 * 60 * 1000,
   })
 
+  if (isPending && fetchStatus === 'paused') return <CMMSErrorState message="You're offline and this hasn't been saved on this device yet. Reconnect to load it." />
   if (isLoading) return <CMMSLoadingState />
   if (error) return <CMMSErrorState message="Failed to load assets" />
 
