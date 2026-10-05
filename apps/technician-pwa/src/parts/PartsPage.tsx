@@ -55,7 +55,7 @@ export default function PartsPage() {
         <CMMSEmptyState title={debounced ? 'No parts match your search' : 'No parts available'} />
       ) : (
         <>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs" style={{ alignItems: 'start' }}>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
             {shown.map(part => {
               const stock = stockByPart.get(part.partNumber)
               const known = stock !== undefined

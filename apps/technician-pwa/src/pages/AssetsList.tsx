@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Group, NumberInput, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
-import { IconClipboardList, IconSearch, IconTool } from '@tabler/icons-react'
+import { IconClipboardList, IconGauge, IconSearch, IconTool } from '@tabler/icons-react'
 import { useNavigate } from 'react-router-dom'
 import { assetService, getApiError, type AssetDto, type AssetMeterDto, type GetAssetsResponse } from '@cmms/api-client'
 import { CMMSEmptyState, CMMSErrorState } from '@cmms/ui'
@@ -56,7 +56,7 @@ export default function AssetsList() {
         <CMMSEmptyState title={debounced ? 'No assets match your search' : 'No assets at this site'} />
       ) : (
         <>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs" style={{ alignItems: 'start' }}>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs" style={{ gridAutoFlow: 'row dense' }}>
             {shown.map(asset => <AssetCard key={asset.id} asset={asset} expanded={selectedAssetId === asset.id} onToggle={() => setSelectedAssetId(current => current === asset.id ? null : asset.id)} />)}
           </SimpleGrid>
           {filtered.length > shown.length && (
@@ -73,7 +73,8 @@ function AssetCard({ asset, expanded, onToggle }: { asset: AssetDto; expanded: b
   const condition = asset.health?.conditionStatus
   const details = [asset.manufacturer, asset.model].filter(Boolean).join(' · ')
   return (
-    <Paper p="sm" radius={6} withBorder>
+    // Cards in a row share one height with the buttons pinned to the bottom; an open meter form takes the full row
+    <Paper p="sm" radius={6} withBorder style={{ display: 'flex', flexDirection: 'column', gridColumn: expanded ? '1 / -1' : undefined }}>
       <Group justify="space-between" wrap="nowrap" align="flex-start">
         <Group gap="sm" wrap="nowrap" align="flex-start" style={{ minWidth: 0 }}>
           <IconTool size="1.25rem" color="var(--mantine-color-dimmed)" style={{ marginTop: 3, flexShrink: 0 }} />
@@ -88,9 +89,11 @@ function AssetCard({ asset, expanded, onToggle }: { asset: AssetDto; expanded: b
           {condition && condition !== 'NO_DATA' && <Badge size="xs" variant="dot" color={healthColor[condition] ?? 'gray'}>{condition}</Badge>}
         </Stack>
       </Group>
-      <Group gap="xs" mt="xs">
-        <Button size="md" variant="subtle" color="gray" leftSection={<IconClipboardList size="1.125rem" />} onClick={() => navigate(`/work-orders?asset=${asset.id}`)}>Work orders</Button>
-        {asset.meters?.length ? <Button size="md" variant="light" onClick={onToggle}>{expanded ? 'Hide meters' : 'Record meter'}</Button> : null}
+      <Group justify="space-between" gap="xs" mt="auto" pt="xs" wrap="nowrap">
+        <Button size="sm" h={44} variant="default" styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconClipboardList size="1.25rem" style={{ display: 'block' }} />} onClick={() => navigate(`/work-orders?asset=${asset.id}`)}>Work orders</Button>
+        {asset.meters?.length ? (
+          <Button size="sm" h={44} color="yellow" c="#111827" fw={700} styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconGauge size="1.25rem" style={{ display: 'block' }} />} aria-expanded={expanded} onClick={onToggle}>{expanded ? 'Hide meters' : 'Record meter'}</Button>
+        ) : null}
       </Group>
       {expanded && <Stack gap="xs" mt="sm">{asset.meters?.map(meter => <MeterRecorder key={meter.id} assetId={asset.id} meter={meter} />)}</Stack>}
     </Paper>
