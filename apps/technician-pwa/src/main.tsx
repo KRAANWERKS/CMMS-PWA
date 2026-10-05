@@ -10,8 +10,11 @@ import { Notifications } from '@mantine/notifications'
 import App from './App'
 import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
+import './app.css'
 import { theme } from './theme'
+import { applyTextScale, getTextScale } from './textScale'
 import { registerSW } from 'virtual:pwa-register'
+import { startOutboxSync } from './db/sync'
 import { installMockApi } from './dev/mockApi'
 
 // Server data is saved to IndexedDB so lists and opened work orders stay readable offline
@@ -28,6 +31,8 @@ const queryClient = new QueryClient({
 
 if (import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH === 'true') installMockApi()
 
+applyTextScale(getTextScale())
+startOutboxSync(queryClient)
 registerSW()
 if ('caches' in window) void caches.delete('api-cache')
 
