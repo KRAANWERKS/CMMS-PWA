@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Stack, Text, Paper, Group, TextInput } from '@mantine/core'
+import { Badge, SimpleGrid, Stack, Text, Paper, Group, TextInput } from '@mantine/core'
 import { IconSearch, IconPackage } from '@tabler/icons-react'
 import { useState } from 'react'
 import { sparePartService } from '@cmms/api-client'
@@ -27,7 +27,7 @@ export default function PartsPage() {
 
   return (
     <Stack gap="md">
-      <Text fw={700} size="xl">Parts</Text>
+      <Text fw={750} size="xl">Parts</Text>
 
       <TextInput
         placeholder="Search parts..."
@@ -40,22 +40,26 @@ export default function PartsPage() {
       {filtered.length === 0 ? (
         <CMMSEmptyState title="No parts found" />
       ) : (
-        <Stack gap="xs">
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs" style={{ alignItems: 'start' }}>
           {filtered.map((part) => (
-            <Paper key={part.id} p="sm" radius="sm" withBorder>
+            <Paper key={part.id} p="sm" radius={6} withBorder>
               <Group justify="space-between">
                 <Group gap="sm">
                   <IconPackage size={16} color="var(--mantine-color-dimmed)" />
                   <div>
                     <Text size="sm" fw={500}>{part.partNumber}</Text>
                     <Text size="xs" c="dimmed">{part.name}</Text>
+                    {part.manufacturer && <Text size="xs" c="dimmed">{part.manufacturer}</Text>}
                   </div>
                 </Group>
-                <Text size="xs" c="dimmed">{part.uom}</Text>
+                <Stack gap={4} align="flex-end">
+                  <Badge size="xs" variant="light" color={part.verificationStatus === 'VERIFIED' ? 'teal' : part.verificationStatus === 'OBSOLETE' ? 'red' : 'gray'}>{part.verificationStatus}</Badge>
+                  <Text size="xs" c="dimmed">{part.uom}</Text>
+                </Stack>
               </Group>
             </Paper>
           ))}
-        </Stack>
+        </SimpleGrid>
       )}
     </Stack>
   )

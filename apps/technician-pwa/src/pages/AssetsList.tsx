@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Stack, Text, Paper, Group, Badge, Button, NumberInput, TextInput } from '@mantine/core'
+import { Alert, SimpleGrid, Stack, Text, Paper, Group, Badge, Button, NumberInput, TextInput } from '@mantine/core'
 import { IconSearch, IconTool } from '@tabler/icons-react'
 import { useState } from 'react'
 import { assetService, getApiError, type AssetMeterDto } from '@cmms/api-client'
@@ -28,7 +28,7 @@ export default function AssetsList() {
 
   return (
     <Stack gap="md">
-      <Text fw={700} size="xl">Assets</Text>
+      <Text fw={750} size="xl">Assets</Text>
 
       <TextInput
         placeholder="Search assets..."
@@ -41,9 +41,9 @@ export default function AssetsList() {
       {filtered.length === 0 ? (
         <CMMSEmptyState title="No assets found" />
       ) : (
-        <Stack gap="xs">
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs" style={{ alignItems: 'start' }}>
           {filtered.map((asset) => (
-            <Paper key={asset.id} p="sm" radius="sm" withBorder>
+            <Paper key={asset.id} p="sm" radius={6} withBorder>
               <Group justify="space-between">
                 <Group gap="sm">
                   <IconTool size={16} color="var(--mantine-color-dimmed)" />
@@ -62,7 +62,7 @@ export default function AssetsList() {
               {selectedAssetId === asset.id && <Stack gap="xs" mt="sm">{asset.meters?.map(meter => <MeterRecorder key={meter.id} assetId={asset.id} meter={meter} />)}</Stack>}
             </Paper>
           ))}
-        </Stack>
+        </SimpleGrid>
       )}
     </Stack>
   )

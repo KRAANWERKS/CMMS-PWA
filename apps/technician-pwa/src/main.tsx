@@ -9,10 +9,13 @@ import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 import { theme } from './theme'
 import { registerSW } from 'virtual:pwa-register'
+import { installMockApi } from './dev/mockApi'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 1000 * 60 * 5, gcTime: 1000 * 60 * 60 * 24 } },
 })
+
+if (import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH === 'true') installMockApi()
 
 registerSW()
 if ('caches' in window) void caches.delete('api-cache')

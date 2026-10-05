@@ -114,7 +114,7 @@ export function WorkOrderExecute() {
             <Group gap={8} mt={6}><Text size="12px" c="dimmed">{wo.number}</Text><Badge variant="light" color={wo.status === 'IN_PROGRESS' ? 'blue' : wo.status === 'COMPLETED' ? 'green' : 'gray'} size="sm">{wo.status.replace(/_/g, ' ')}</Badge></Group>
             <Text size="12px" c="dimmed" mt={10}>{breadcrumb}</Text>
           </Box>
-          {saving && <Text size="10px" c="dimmed">Saving…</Text>}
+          
         </Group>
       </Box>
 
@@ -149,8 +149,8 @@ export function WorkOrderExecute() {
             return (
               <Paper key={task.id} withBorder radius={6} px={12} py={10}>
                 <Group justify="space-between" wrap="nowrap">
-                  <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}><Box w={18} h={18} style={{ borderRadius: 999, border: '1.5px solid #64748B', flexShrink: 0 }} /><Text size="13px" truncate>{task.description}</Text></Group>
-                  <IconChevronRight size={16} color="#64748B" />
+                  <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}><Box w={18} h={18} style={{ borderRadius: 999, border: '1.5px solid var(--mantine-color-dimmed)', flexShrink: 0 }} /><Text size="13px" truncate>{task.description}</Text></Group>
+                  <IconChevronRight size={16} color="var(--mantine-color-dimmed)" />
                 </Group>
               </Paper>
             )
@@ -158,7 +158,7 @@ export function WorkOrderExecute() {
 
           return (
             <Paper id={`instruction-${task.id}`} key={task.id} withBorder radius={6} p={12}>
-              <Group gap={10} wrap="nowrap" mb={10}><Box w={18} h={18} style={{ borderRadius: 999, border: '1.5px solid #334155', flexShrink: 0 }} /><Text size="13px" fw={650}>{task.description}</Text></Group>
+              <Group gap={10} wrap="nowrap" mb={10}><Box w={18} h={18} style={{ borderRadius: 999, border: '1.5px solid var(--mantine-color-text)', flexShrink: 0 }} /><Text size="13px" fw={650}>{task.description}</Text></Group>
 
               {task.responseType === 'CHECKBOX' ? (
                 <Button fullWidth color="yellow" c="#111827" disabled={!isOnline || wo.status !== 'IN_PROGRESS' || taskMutation.isPending} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true })}>Mark complete</Button>
@@ -242,7 +242,7 @@ export function WorkOrderExecute() {
         </Accordion.Item>}
       </Accordion>
 
-      <Box pos="sticky" bottom={0} py={10} bg="var(--mantine-color-body)" style={{ zIndex: 2 }}>
+      <Box pos="sticky" bottom="calc(var(--app-shell-footer-offset, 0px) + env(safe-area-inset-bottom))" py={10} bg="var(--mantine-color-body)" style={{ zIndex: 2 }}>
         <Button fullWidth size="md" color="yellow" c="#111827" disabled={!isOnline || (!startTransition && !currentTask && !canComplete)} loading={statusMutation.isPending} onClick={continueInspection}>
           {startTransition ? 'Start inspection' : currentTask ? 'Continue inspection' : canComplete ? 'Review completion' : 'Inspection complete'}
         </Button>

@@ -91,7 +91,7 @@ export function AssignedWorkOrders() {
         </Group>
       </div>
 
-      <SimpleGrid cols={2} spacing="xs">
+      <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xs">
         <Paper p="sm" radius={6} withBorder>
           <Group gap={6}>
             <IconClipboardList size={18} />
