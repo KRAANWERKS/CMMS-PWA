@@ -1,4 +1,5 @@
-import { Box, Group, Popover, Text, UnstyledButton } from '@mantine/core'
+import { Box, Button, Group, Popover, Stack, Text, UnstyledButton } from '@mantine/core'
+import { db } from '../db/schema'
 import { useConnectionStatus, type ConnectionState } from '../hooks/useConnectionStatus'
 
 const display: Record<ConnectionState, { label: string; color: string; detail: string }> = {
@@ -16,16 +17,17 @@ export function formatSynced(timestamp: number | null) {
 }
 
 export function ConnectionIndicator() {
-  const { state, lastSyncedAt } = useConnectionStatus()
+  const { state, lastSyncedAt, pendingCount, failed } = useConnectionStatus()
   const { label, color, detail } = display[state]
+  const shownLabel = pendingCount > 0 ? `${label} · ${pendingCount} to sync` : label
 
   return (
-    <Popover width={240} position="bottom-end" withArrow shadow="md">
+    <Popover width={280} position="bottom-end" withArrow shadow="md">
       <Popover.Target>
-        <UnstyledButton aria-label={`Connection status: ${label}`} px={8} py={4} style={{ borderRadius: 999, border: '1px solid var(--mantine-color-default-border)' }}>
+        <UnstyledButton aria-label={`Connection status: ${shownLabel}`} px={12} py={8} style={{ borderRadius: 999, border: '1px solid var(--mantine-color-default-border)' }}>
           <Group gap={6} wrap="nowrap">
-            <Box w={8} h={8} style={{ borderRadius: 999, background: color, flexShrink: 0 }} />
-            <Text size="xs" fw={600} visibleFrom="sm">{label}</Text>
+            <Box w={12} h={12} style={{ borderRadius: 999, background: color, flexShrink: 0 }} />
+            <Text size="sm" fw={700} visibleFrom="sm">{shownLabel}</Text>
           </Group>
         </UnstyledButton>
       </Popover.Target>
@@ -33,6 +35,18 @@ export function ConnectionIndicator() {
         <Text size="sm" fw={650}>{label}</Text>
         <Text size="xs" c="dimmed" mt={2}>{detail}</Text>
         <Text size="xs" mt="xs">{formatSynced(lastSyncedAt)}</Text>
+        {pendingCount > 0 && <Text size="xs" mt={4} fw={600}>{pendingCount} change{pendingCount === 1 ? '' : 's'} saved on this device, waiting to sync.</Text>}
+        {failed.length > 0 && (
+          <Stack gap={6} mt="sm">
+            <Text size="xs" fw={700} c="red">{failed.length} change{failed.length === 1 ? ' was' : 's were'} rejected by the server</Text>
+            {failed.map(entry => (
+              <Group key={entry.id} justify="space-between" wrap="nowrap" align="flex-start">
+                <Text size="xs" c="dimmed">{entry.action.toLowerCase()}: {entry.error}</Text>
+                <Button size="sm" variant="subtle" color="gray" onClick={() => db.outbox.delete(entry.id!)}>Dismiss</Button>
+              </Group>
+            ))}
+          </Stack>
+        )}
       </Popover.Dropdown>
     </Popover>
   )

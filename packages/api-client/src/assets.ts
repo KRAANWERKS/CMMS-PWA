@@ -149,11 +149,11 @@ export const assetService = {
     return response.data
   },
 
-  async recordMeterReading(assetId: string, meterId: string, value: number, note?: string, workOrderId?: string): Promise<void> {
+  async recordMeterReading(assetId: string, meterId: string, value: number, note?: string, workOrderId?: string, readingAt?: string): Promise<void> {
     await apiClient.post(`/assets/${assetId}/meter-readings`, {
       meterId,
       value,
-      readingAt: new Date().toISOString(),
+      readingAt: readingAt ?? new Date().toISOString(),
       note: note?.trim() || undefined,
       workOrderId,
     })

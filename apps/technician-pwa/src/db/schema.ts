@@ -1,38 +1,22 @@
 import Dexie, { type Table } from 'dexie'
 
-export interface OfflineWorkOrder {
-  id: string
-  number: string
-  title: string
-  status: string
-  priority: string
-  assetCode: string
-  assetName: string
-  checklist: { step: string; completed: boolean }[]
-  laborLogs: { userId: string; hours: number; workedAt: string; note?: string }[]
-  partUsages: { sparePartId: string; quantity: number }[]
-  syncedAt?: string
-}
+export type OutboxAction = 'TASK' | 'LABOR' | 'STATUS' | 'COMPLETE' | 'METER'
 
-export interface OfflineSparePart {
-  id: string
-  partNumber: string
-  name: string
-  uom: string
-}
-
+/** A change made on this device that has not reached the server yet. */
 export interface OutboxEntry {
   id?: number
-  action: 'WO_STATUS' | 'LABOR_LOG' | 'PART_USAGE' | 'METER_READING'
+  action: OutboxAction
+  workOrderId?: string
+  assetId?: string
   payload: Record<string, unknown>
   createdAt: string
-  synced: boolean
+  /** PENDING = waiting to send (retried); FAILED = the server rejected it. */
+  status: 'PENDING' | 'FAILED'
+  error?: string
 }
 
 class CmmsDexie extends Dexie {
-  workOrders!: Table<OfflineWorkOrder>
-  spareParts!: Table<OfflineSparePart>
-  outbox!: Table<OutboxEntry>
+  outbox!: Table<OutboxEntry, number>
 
   constructor() {
     super('cmms-pwa')
@@ -41,6 +25,12 @@ class CmmsDexie extends Dexie {
       spareParts: 'id, partNumber, name',
       outbox: '++id, action, synced, createdAt',
     })
+    // v1 tables were never used; the outbox now tracks a status instead of a synced flag
+    this.version(2).stores({
+      workOrders: null,
+      spareParts: null,
+      outbox: '++id, action, status, workOrderId, createdAt',
+    }).upgrade(tx => tx.table('outbox').clear())
   }
 }
 

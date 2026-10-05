@@ -1,5 +1,8 @@
 import { useSyncExternalStore } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useIsFetching, useIsMutating, useQueryClient } from '@tanstack/react-query'
+
+import { db } from '../db/schema'
 
 export type ConnectionState = 'offline' | 'unreachable' | 'syncing' | 'online'
 
@@ -37,6 +40,10 @@ export function useConnectionStatus() {
     () => cache.getAll().filter(query => query.state.status === 'error' && query.state.fetchStatus !== 'fetching' && isNetworkError(query.state.error)).length,
   )
 
+  const queued = useLiveQuery(() => db.outbox.toArray(), [], [])
+  const pendingCount = queued.filter(entry => entry.status === 'PENDING').length
+  const failed = queued.filter(entry => entry.status === 'FAILED')
+
   const state: ConnectionState = !isOnline ? 'offline' : failedCount > 0 && fetching === 0 ? 'unreachable' : fetching > 0 ? 'syncing' : 'online'
-  return { state, isOnline, lastSyncedAt: lastSyncedAt || null }
+  return { state, isOnline, lastSyncedAt: lastSyncedAt || null, pendingCount, failed }
 }
