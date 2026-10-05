@@ -9,6 +9,8 @@ import {
   IconTool,
   IconUser,
 } from '@tabler/icons-react'
+import { ConnectionIndicator, formatSynced } from '../components/ConnectionIndicator'
+import { useConnectionStatus } from '../hooks/useConnectionStatus'
 import { TechnicianSiteProvider, useTechnicianSite } from '../context/TechnicianSiteContext'
 
 const navItems = [
@@ -29,13 +31,36 @@ function Brand() {
   )
 }
 
+function SiteSelector() {
+  const { currentSite, currentSiteId, canSwitchSite, permittedSites, selectSite } = useTechnicianSite()
+  if (!canSwitchSite) {
+    return (
+      <>
+        <Text size="xs" c="dimmed">Current site</Text>
+        <Text size="sm" fw={650}>{currentSite?.name ?? 'Not selected'}</Text>
+      </>
+    )
+  }
+  return (
+    <Select
+      label="Current site"
+      value={currentSiteId}
+      onChange={value => value && selectSite(value)}
+      allowDeselect={false}
+      comboboxProps={{ withinPortal: false, position: 'top' }}
+      data={permittedSites.map(site => ({ value: site.id, label: site.code ? `${site.name} · ${site.code}` : site.name }))}
+    />
+  )
+}
+
 function MobileLayoutContent() {
   const location = useLocation()
   const navigate = useNavigate()
   const [menuOpened, { open: openMenu, close: closeMenu }] = useDisclosure(false)
   const isDesktop = useMediaQuery('(min-width: 62em)')
-  const { currentSite, currentSiteId, canSwitchSite, permittedSites, requiresSelection, loading, selectSite } = useTechnicianSite()
+  const { currentSite, permittedSites, requiresSelection, loading, selectSite } = useTechnicianSite()
 
+  const { isOnline, lastSyncedAt } = useConnectionStatus()
   const noSiteAccess = !loading && permittedSites.length === 0
   const profileRoute = location.pathname.startsWith('/profile')
   const siteLabel = loading ? 'Loading…' : currentSite?.code || currentSite?.name || 'Not selected'
@@ -59,6 +84,7 @@ function MobileLayoutContent() {
               <IconMapPin size={14} color="var(--mantine-color-dimmed)" />
               <Text size="xs" fw={600} truncate maw={140}>{siteLabel}</Text>
             </Group>
+            <ConnectionIndicator />
             <UnstyledButton aria-label="Open profile" onClick={() => navigate('/profile')}>
               <Avatar size={30} radius="xl" color="blue">U</Avatar>
             </UnstyledButton>
@@ -82,12 +108,12 @@ function MobileLayoutContent() {
           ))}
         </Stack>
         <Box mt="auto" p="xs">
-          <Text size="xs" c="dimmed">Current site</Text>
-          <Text size="sm" fw={650} truncate>{currentSite?.name ?? 'Not selected'}</Text>
+          <SiteSelector />
         </Box>
       </AppShell.Navbar>
 
       <AppShell.Main>
+        {!isOnline && <Alert color="yellow" radius={0} py={8}>You're offline. Showing saved data · {formatSynced(lastSyncedAt)}. Changes are disabled until you reconnect.</Alert>}
         <Container size={960} px={16} py={14}>
           {noSiteAccess && !profileRoute ? (
             <Alert color="orange" title="No site access">Your account does not currently have access to a maintenance site. Ask an administrator to review your site access. You can still open Profile to sign out.</Alert>
@@ -130,21 +156,7 @@ function MobileLayoutContent() {
         </Stack>
         <Box mt="auto">
           <Divider mb="sm" />
-          {canSwitchSite ? (
-            <Select
-              label="Current site"
-              value={currentSiteId}
-              onChange={value => value && selectSite(value)}
-              allowDeselect={false}
-              comboboxProps={{ withinPortal: false, position: 'top' }}
-              data={permittedSites.map(site => ({ value: site.id, label: site.code ? `${site.name} · ${site.code}` : site.name }))}
-            />
-          ) : (
-            <>
-              <Text size="xs" c="dimmed">Current site</Text>
-              <Text size="sm" fw={650}>{currentSite?.name ?? 'Not selected'}</Text>
-            </>
-          )}
+          <SiteSelector />
         </Box>
       </Drawer>
 
