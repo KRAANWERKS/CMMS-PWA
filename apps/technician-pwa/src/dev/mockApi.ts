@@ -111,12 +111,24 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
       return assets.filter(a => (!params.siteId || a.siteId === params.siteId) && (!search || `${a.name} ${a.assetCode}`.toLowerCase().includes(search)))
     }
     if (url === '/spare-parts') return mockParts satisfies SparePartDto[]
-    if (url === '/spare-parts/balances') return []
+    if (url === '/spare-parts/balances') {
+      // Varied stock levels so the in-stock / low / out-of-stock badges are all visible
+      return mockParts.map((part, index) => ({
+        id: `bal-${index}`, partNumber: part.partNumber, partName: part.name, uom: part.uom, locationName: 'Main store',
+        quantityOnHand: index % 7 === 0 ? 0 : index % 4 === 0 ? Math.max(1, part.reorderPoint - 1) : part.reorderQuantity + index,
+        quantityReserved: 0, odooSnapshotAt: new Date().toISOString(), source: 'ODOO' as const,
+      }))
+    }
     if (url === '/work-orders/query') {
       const page = Number(params.page ?? 1)
       const pageSize = Number(params.pageSize ?? 25)
+      const search = String(params.search ?? '').toLowerCase()
       const filtered = workOrders.filter(w =>
         (!params.siteId || w.siteId === params.siteId) &&
+        (!params.assetId || w.assetId === params.assetId) &&
+        (!params.priority || w.priority === params.priority) &&
+        (!params.overdue || (!!w.scheduledEnd && w.status !== 'COMPLETED' && new Date(w.scheduledEnd).getTime() < Date.now())) &&
+        (!search || `${w.number} ${w.title} ${w.assetName ?? ''}`.toLowerCase().includes(search)) &&
         (params.view === 'completed' ? w.status === 'COMPLETED' : params.view === 'open' ? w.status !== 'COMPLETED' : true))
       return {
         items: filtered.slice((page - 1) * pageSize, page * pageSize), totalCount: filtered.length,
