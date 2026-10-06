@@ -137,6 +137,18 @@ export const assetService = {
     }
   },
 
+  // The server caps pageSize at 500, so larger sites need several pages
+  async getAllAssets(siteId: string, search?: string): Promise<GetAssetsResponse> {
+    const pageSize = 500
+    const items: AssetDto[] = []
+    for (let page = 1; ; page++) {
+      const batch = (await assetService.getAssets({ siteId, search, page, pageSize })).items
+      items.push(...batch)
+      if (batch.length < pageSize) break
+    }
+    return { items, totalCount: items.length, page: 1, pageSize: items.length }
+  },
+
   async getAssetById(id: string): Promise<AssetDto> {
     const response = await apiClient.get<AssetDto>(`/assets/${id}`)
     return response.data

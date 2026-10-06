@@ -16,7 +16,7 @@ export default function PartsPage() {
 
   const { data, isLoading, isPending, fetchStatus, error } = useQuery({
     queryKey: ['spare-parts'],
-    queryFn: () => sparePartService.getSpareParts({ pageSize: 100 }),
+    queryFn: () => sparePartService.getAllSpareParts(),
     staleTime: 10 * 60 * 1000,
   })
   // Stock is a nice-to-have: the list still works if balances are unavailable

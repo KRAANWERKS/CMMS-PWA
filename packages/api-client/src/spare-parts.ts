@@ -60,6 +60,18 @@ export const sparePartService = {
     }
   },
 
+  // The server caps pageSize at 100, so the full catalogue needs several pages
+  async getAllSpareParts(): Promise<GetSparePartsResponse> {
+    const pageSize = 100
+    const items: SparePartDto[] = []
+    for (let page = 1; ; page++) {
+      const batch = (await sparePartService.getSpareParts({ page, pageSize })).items
+      items.push(...batch)
+      if (batch.length < pageSize) break
+    }
+    return { items, totalCount: items.length, page: 1, pageSize: items.length }
+  },
+
   async getSparePartById(id: string): Promise<SparePartDto> {
     const response = await apiClient.get<SparePartDto>(`/spare-parts/${id}`)
     return response.data
