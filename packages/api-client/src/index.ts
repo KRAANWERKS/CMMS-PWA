@@ -11,6 +11,10 @@ export { assetService } from './assets'
 
 export type {
   WorkOrderDto,
+  WorkOrderPmOriginDto,
+  WorkOrderHistoryEntryDto,
+  TaskAttachmentDto,
+  CreateWorkRequest,
   GetWorkOrdersParams,
   GetWorkOrdersResponse,
   InstructionDefinition,

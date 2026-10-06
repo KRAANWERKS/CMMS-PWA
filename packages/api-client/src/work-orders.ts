@@ -60,6 +60,32 @@ export interface WorkOrderPmOriginDto {
   cycleNumber: number
 }
 
+export interface TaskAttachmentDto {
+  id: string
+  fileName?: string | null
+  contentType?: string | null
+  fileSize?: number | null
+}
+
+export interface WorkOrderHistoryEntryDto {
+  id: string
+  comment: string
+  createdAt: string
+  authorId?: string | null
+  authorDisplayName?: string | null
+  kind?: string | null
+}
+
+export interface CreateWorkRequest {
+  siteId: string
+  requestedBy: string
+  assetId?: string
+  title: string
+  description?: string
+  priority: string
+  dueAt?: string
+}
+
 export interface WorkOrderDto {
   id: string
   number: string
@@ -83,7 +109,7 @@ export interface WorkOrderDto {
   closedByUserId?: string | null
   closureReason?: string | null
   assignees: { userId: string; displayName: string }[]
-  tasks: { id: string; description: string; status: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'INFORMATION'; unit?: string | null; minimumValue?: number | null; maximumValue?: number | null; responseValue?: string | null; sourceInstructionId?: number | null; parentSourceInstructionId?: number | null; sourceInstructionType?: number | null; responseOptions?: string | null; linkedAsset?: { id: string; assetCode: string; name: string } | null; linkedMeter?: { id: string; name: string; unit: string } | null; linkedMeasurementPoint?: { id: string; name: string; measurementType: string; unit: string; normalMinimum?: number | null; normalMaximum?: number | null } | null }[]
+  tasks: { id: string; description: string; status: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'INFORMATION'; unit?: string | null; minimumValue?: number | null; maximumValue?: number | null; responseValue?: string | null; sourceInstructionId?: number | null; parentSourceInstructionId?: number | null; sourceInstructionType?: number | null; responseOptions?: string | null; linkedAsset?: { id: string; assetCode: string; name: string } | null; linkedMeter?: { id: string; name: string; unit: string } | null; minimumPhotoCount?: number; attachments?: TaskAttachmentDto[]; referenceAttachments?: TaskAttachmentDto[]; instructionReferenceKey?: string | null; linkedMeasurementPoint?: { id: string; name: string; measurementType: string; unit: string; normalMinimum?: number | null; normalMaximum?: number | null } | null }[]
   materials: { id: string; externalKey: string; requestType: string; state: string; sourceUpdatedAt: string }[]
   labor: { id: string; hours: number; workedAt: string; notes?: string }[]
   comments: { id: string; comment: string; createdAt: string }[]
@@ -214,5 +240,17 @@ export const workOrderService = {
   async setTaskCompleted(id: string, taskId: string, completed: boolean, responseValue?: string): Promise<void> { await apiClient.post(`/work-orders/${id}/tasks/${taskId}`, { completed, responseValue }) },
   async changeStatus(id: string, newStatus: string): Promise<void> { await apiClient.post(`/work-orders/${id}/status`, { newStatus }) },
   async recordLabor(id: string, hours: number, workedAt: string, note?: string): Promise<void> { await apiClient.post(`/work-orders/${id}/labor`, { hours, workedAt, note }) },
-  async complete(id: string, completionNotes: string): Promise<void> { await apiClient.post(`/work-orders/${id}/complete`, { completionNotes }) }
+  async complete(id: string, completionNotes: string): Promise<void> { await apiClient.post(`/work-orders/${id}/complete`, { completionNotes }) },
+  async getHistory(id: string): Promise<WorkOrderHistoryEntryDto[]> { return (await apiClient.get<WorkOrderHistoryEntryDto[]>(`/work-orders/${id}/history`)).data },
+  async uploadTaskAttachment(workOrderId: string, taskId: string, file: Blob, fileName: string): Promise<void> {
+    const form = new FormData()
+    form.append('file', file, fileName)
+    // Let the browser set the multipart boundary
+    await apiClient.post(`/work-orders/${workOrderId}/tasks/${taskId}/attachments`, form, { headers: { 'Content-Type': undefined } })
+  },
+  // Attachment content needs the session cookie, so it is fetched as a blob instead of used as an <img src>
+  async getAttachmentBlob(attachmentId: string): Promise<Blob> {
+    return (await apiClient.get<Blob>(`/attachments/${attachmentId}/content`, { responseType: 'blob', transformResponse: [data => data] })).data
+  },
+  async createWorkRequest(request: CreateWorkRequest): Promise<{ id: string }> { return (await apiClient.post<{ id: string }>('/work-requests', request)).data },
 }

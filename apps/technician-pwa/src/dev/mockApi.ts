@@ -141,11 +141,25 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
       if (!found) throw new HttpError(404, 'Work order not found')
       return found
     }
+    if ((m = url.match(/^\/work-orders\/([^/]+)\/history$/))) return []
+    if ((m = url.match(/^\/work-orders\/([^/]+)\/pm-origin$/))) return null
+    if ((m = url.match(/^\/assets\/([^/]+)$/))) {
+      const found = assets.find(a => a.id === m![1])
+      if (!found) throw new HttpError(404, 'Asset not found')
+      return found
+    }
     throw new HttpError(404, `No mock for GET ${url}`)
   }
 
   if (method === 'post') {
     if (url === '/auth/logout' || url === '/auth/login') return null
+    if (url === '/work-requests') return { id: `mock-request-${Date.now()}` }
+    if ((m = url.match(/^\/work-orders\/([^/]+)\/tasks\/([^/]+)\/attachments$/))) {
+      const task = workOrders.find(w => w.id === m![1])?.tasks.find(x => x.id === m![2])
+      if (!task) throw new HttpError(404, 'Task not found')
+      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: 'photo.jpg', contentType: 'image/jpeg' }]
+      return null
+    }
     if ((m = url.match(/^\/assets\/([^/]+)\/meter-readings$/))) {
       const target = assets.find(a => a.id === m![1])?.meters?.find(x => x.id === body.meterId)
       if (target) { target.currentReading = Number(body.value); target.readingAt = new Date().toISOString() }

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge, Button, Chip, Group, Pagination, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { IconCircleCheck, IconClipboardList, IconSearch, IconX } from '@tabler/icons-react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { workOrderService } from '@cmms/api-client'
 import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
@@ -80,7 +80,10 @@ export function AssignedWorkOrders() {
           <Text fw={750} size="xl">My Work</Text>
           <Text size="sm" c="dimmed">{currentSite?.name ?? 'Current site'}</Text>
         </div>
-        {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}
+        <Stack gap={6} align="flex-end">
+          {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}
+          <Button component={Link} to="/work-requests/new" size="xs" variant="light">Report issue</Button>
+        </Stack>
       </Group>
 
       {!filtered && (

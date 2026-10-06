@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Accordion, Alert, Box, Button, Divider, Group, NumberInput, Paper, Progress, Select, Stack, Text, Textarea, TextInput } from '@mantine/core'
-import { IconCheck, IconChevronRight, IconClock, IconPackage, IconSend, IconTool } from '@tabler/icons-react'
+import { IconCheck, IconChevronRight, IconClock, IconHistory, IconPackage, IconSend, IconTool } from '@tabler/icons-react'
 import { getApiError, workOrderService, type WorkOrderDto } from '@cmms/api-client'
 import { CMMSErrorState } from '@cmms/ui'
 import { PriorityBadge, StatusBadge } from '../components/Badges'
 import { DetailSkeleton } from '../components/Skeletons'
 import { submitChange, withPendingChanges, applyEntry, type NewEntry } from '../db/sync'
+import { TaskPhotos } from '../components/TaskPhotos'
+import { MeterReadingTask } from '../components/MeterReadingTask'
+import { WorkOrderHistory } from '../components/WorkOrderHistory'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 
 function responseOptions(value?: string | null) {
@@ -45,6 +48,13 @@ export function WorkOrderExecute() {
 
   // Server data plus anything queued on this device that the server has not received yet
   const query = useQuery({ queryKey: ['work-order', id], queryFn: async () => withPendingChanges(await workOrderService.getWorkOrderById(id!)), enabled: !!id })
+  const pmOrigin = useQuery({
+    queryKey: ['work-order-pm-origin', id],
+    queryFn: () => workOrderService.getPmOrigin(id!),
+    enabled: !!id && query.data?.source === 'PM' && isOnline,
+    staleTime: 10 * 60_000,
+    retry: false,
+  })
   const [queuedCount, setQueuedCount] = useState(0)
   // Saves locally first, shows the result immediately, then syncs when a connection is available
   const send = async (entry: NewEntry) => {
@@ -58,6 +68,11 @@ export function WorkOrderExecute() {
   const rollback = () => { queryClient.invalidateQueries({ queryKey: ['work-order', id] }) }
   const statusMutation = useMutation({ mutationFn: (status: string) => send({ action: 'STATUS', workOrderId: id!, payload: { status } }), onError: rollback })
   const taskMutation = useMutation({ mutationFn: ({ taskId, completed, responseValue }: { taskId: string; completed: boolean; responseValue?: string }) => send({ action: 'TASK', workOrderId: id!, payload: { taskId, completed, responseValue } }), onError: rollback })
+  // Records the reading on the meter (linked to this work order), then completes the instruction
+  const meterMutation = useMutation({ mutationFn: async ({ taskId, assetId, meterId, value }: { taskId: string; assetId: string; meterId: string; value: number }) => {
+    await send({ action: 'METER', workOrderId: id!, assetId, payload: { meterId, value, readingAt: new Date().toISOString() } })
+    await send({ action: 'TASK', workOrderId: id!, payload: { taskId, completed: true } })
+  }, onError: rollback })
   const laborMutation = useMutation({ mutationFn: () => send({ action: 'LABOR', workOrderId: id!, payload: { hours: laborHours, workedAt: new Date().toISOString(), note: laborNote || undefined } }), onSuccess: () => { sessionLaborLogged.current = true; setLaborHours(0); setLaborEdited(false); setLaborNote('') }, onError: rollback })
   const completeMutation = useMutation({ mutationFn: async () => {
     if ((query.data?.totalLaborHours ?? 0) <= 0 && !sessionLaborLogged.current) {
@@ -68,7 +83,7 @@ export function WorkOrderExecute() {
   }, onSuccess: () => setCompletionNotes(''), onError: rollback })
 
   const wo = query.data
-  const mutations = [statusMutation, taskMutation, laborMutation, completeMutation]
+  const mutations = [statusMutation, taskMutation, meterMutation, laborMutation, completeMutation]
   const mutationError = mutations.find(mutation => mutation.error)?.error
   const saving = mutations.some(mutation => mutation.isPending)
   const actionable = (wo?.tasks || []).filter(task => task.responseType !== 'INFORMATION')
@@ -129,6 +144,8 @@ export function WorkOrderExecute() {
         </Group>
       </Box>
 
+      {pmOrigin.data && <Alert color="blue" variant="light" py={6}>Preventive maintenance: {pmOrigin.data.pmPlanName} · cycle {pmOrigin.data.cycleNumber}</Alert>}
+
       {wo.description && <Text size="sm" c="dimmed">{wo.description}</Text>}
 
       <Box>
@@ -141,6 +158,8 @@ export function WorkOrderExecute() {
           const done = task.status === 'COMPLETED'
           const active = currentTask?.id === task.id
           const response = taskResponses[task.id] ?? task.responseValue ?? ''
+          const photoCount = task.attachments?.length ?? 0
+          const photosMissing = (task.minimumPhotoCount ?? 0) > photoCount
 
           if (done) {
             return (
@@ -171,8 +190,10 @@ export function WorkOrderExecute() {
             <Paper id={`instruction-${task.id}`} key={task.id} withBorder radius={6} p={12}>
               <Group gap={10} wrap="nowrap" mb={10}><Box w={26} h={26} style={{ borderRadius: 999, border: '1.5px solid var(--mantine-color-text)', flexShrink: 0 }} /><Text size="sm" fw={650}>{task.description}</Text></Group>
 
-              {task.responseType === 'CHECKBOX' ? (
-                <Button fullWidth color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true })}>Mark complete</Button>
+              {task.responseType === 'CHECKBOX' && task.linkedMeter && task.linkedAsset ? (
+                <MeterReadingTask task={task} disabled={wo.status !== 'IN_PROGRESS' || photosMissing} loading={meterMutation.isPending} onSave={value => meterMutation.mutate({ taskId: task.id, assetId: task.linkedAsset!.id, meterId: task.linkedMeter!.id, value })} />
+              ) : task.responseType === 'CHECKBOX' ? (
+                <Button fullWidth color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true })}>Mark complete</Button>
               ) : task.responseType === 'NUMBER' ? (
                 <Stack gap={8}>
                   <NumberInput
@@ -186,24 +207,27 @@ export function WorkOrderExecute() {
                   />
                   {task.linkedMeter && <Alert color="blue" variant="light" py={6}>Saving this instruction also updates {task.linkedMeter.name}.</Alert>}
                   {(task.minimumValue != null || task.maximumValue != null) && <Text size="xs" c="dimmed">Allowed: {task.minimumValue ?? 'no minimum'} to {task.maximumValue ?? 'no maximum'}</Text>}
-                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
+                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
                 </Stack>
               ) : task.responseType === 'SELECT' ? (
                 <Stack gap={8}>
                   <Select label="Select response" data={responseOptions(task.responseOptions)} value={response || null} onChange={value => setTaskResponses(current => ({ ...current, [task.id]: value ?? '' }))} disabled={wo.status !== 'IN_PROGRESS'} />
-                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
+                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
                 </Stack>
               ) : task.responseType === 'DATE' ? (
                 <Stack gap={8}>
                   <TextInput type="date" label="Date" value={response} onChange={event => setTaskResponses(current => ({ ...current, [task.id]: event.currentTarget.value }))} disabled={wo.status !== 'IN_PROGRESS'} />
-                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
+                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
                 </Stack>
               ) : (
                 <Stack gap={8}>
                   <Textarea label="Findings" placeholder="Add any findings, e.g. abnormal noise, leaks, wear…" value={response} minRows={3} maxLength={2000} disabled={wo.status !== 'IN_PROGRESS'} onChange={event => setTaskResponses(current => ({ ...current, [task.id]: event.currentTarget.value }))} />
-                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
+                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
                 </Stack>
               )}
+              <Box mt={10}>
+                <TaskPhotos workOrderId={wo.id} taskId={task.id} attachments={task.attachments ?? []} minimum={task.minimumPhotoCount ?? 0} disabled={wo.status !== 'IN_PROGRESS'} />
+              </Box>
             </Paper>
           )
         })}
@@ -236,6 +260,11 @@ export function WorkOrderExecute() {
             {(wo.usage || []).map((item, index) => <Group key={`${item.sparePartId || item.partNumber}-${index}`} justify="space-between"><Text size="sm">{item.partNumber || item.sparePartId || 'Part'}</Text><Text size="sm">×{item.quantity}</Text></Group>)}
             {!wo.usage?.length && <Text size="sm" c="dimmed">No confirmed parts usage.</Text>}
           </Accordion.Panel>
+        </Accordion.Item>
+
+        <Accordion.Item value="history">
+          <Accordion.Control icon={<IconHistory size="1.375rem" />}>History</Accordion.Control>
+          <Accordion.Panel><WorkOrderHistory workOrderId={wo.id} enabled={openSections.includes('history') && isOnline} /></Accordion.Panel>
         </Accordion.Item>
 
         {(otherTransitions.length > 0 || canComplete) && <Accordion.Item value="finish">

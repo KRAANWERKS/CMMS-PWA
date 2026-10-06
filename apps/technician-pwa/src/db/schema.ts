@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 
-export type OutboxAction = 'TASK' | 'LABOR' | 'STATUS' | 'COMPLETE' | 'METER'
+export type OutboxAction = 'TASK' | 'LABOR' | 'STATUS' | 'COMPLETE' | 'METER' | 'PHOTO'
 
 /** A change made on this device that has not reached the server yet. */
 export interface OutboxEntry {

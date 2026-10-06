@@ -23,7 +23,7 @@ export default function AssetsList() {
 
   const { data, isLoading, isPending, fetchStatus, error } = useQuery({
     queryKey: ['assets', currentSiteId],
-    queryFn: () => assetService.getAssets({ siteId: currentSiteId!, pageSize: 500 }),
+    queryFn: () => assetService.getAllAssets(currentSiteId!),
     enabled: !!currentSiteId,
     staleTime: 10 * 60 * 1000,
   })
@@ -89,8 +89,9 @@ function AssetCard({ asset, expanded, onToggle }: { asset: AssetDto; expanded: b
           {condition && condition !== 'NO_DATA' && <Badge size="xs" variant="dot" color={healthColor[condition] ?? 'gray'}>{condition}</Badge>}
         </Stack>
       </Group>
-      <Group justify="space-between" gap="xs" mt="auto" pt="xs" wrap="nowrap">
+      <Group justify="space-between" gap="xs" mt="auto" pt="xs">
         <Button size="sm" h={44} variant="default" styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconClipboardList size="1.25rem" style={{ display: 'block' }} />} onClick={() => navigate(`/work-orders?asset=${asset.id}`)}>Work orders</Button>
+        <Button size="sm" h={44} variant="subtle" onClick={() => navigate(`/work-requests/new?asset=${asset.id}`)}>Report issue</Button>
         {asset.meters?.length ? (
           <Button size="sm" h={44} color="yellow" c="#111827" fw={700} styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconGauge size="1.25rem" style={{ display: 'block' }} />} aria-expanded={expanded} onClick={onToggle}>{expanded ? 'Hide meters' : 'Record meter'}</Button>
         ) : null}

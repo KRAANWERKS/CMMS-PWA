@@ -17,7 +17,8 @@ async function send(entry: OutboxEntry) {
     case 'LABOR': return workOrderService.recordLabor(entry.workOrderId!, p.hours, p.workedAt, p.note)
     case 'STATUS': return workOrderService.changeStatus(entry.workOrderId!, p.status)
     case 'COMPLETE': return workOrderService.complete(entry.workOrderId!, p.notes)
-    case 'METER': return assetService.recordMeterReading(entry.assetId!, p.meterId, p.value, p.note, undefined, p.readingAt)
+    case 'PHOTO': return workOrderService.uploadTaskAttachment(entry.workOrderId!, p.taskId, p.blob as Blob, p.fileName)
+    case 'METER': return assetService.recordMeterReading(entry.assetId!, p.meterId, p.value, p.note, entry.workOrderId, p.readingAt)
   }
 }
 
@@ -105,6 +106,11 @@ export function applyEntry(wo: WorkOrderDto, entry: OutboxEntry): WorkOrderDto {
         actualStart: p.status === 'IN_PROGRESS' ? wo.actualStart ?? entry.createdAt : wo.actualStart,
         allowedTransitions: heuristicTransitions[p.status] ?? wo.allowedTransitions,
       }
+    case 'PHOTO':
+      // Shown right away; the real attachment replaces it once the upload has synced
+      return { ...wo, tasks: wo.tasks.map(task => task.id !== p.taskId ? task : {
+        ...task, attachments: [...(task.attachments ?? []), { id: `pending-${entry.id}`, fileName: p.fileName, contentType: 'image/jpeg' }],
+      }) }
     case 'COMPLETE':
       return { ...wo, status: 'COMPLETED', allowedTransitions: [] }
     default:

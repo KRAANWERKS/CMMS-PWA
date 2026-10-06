@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ColorSchemeScript, MantineProvider } from '@mantine/core'
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, defaultShouldDehydrateQuery } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { del, get, set } from 'idb-keyval'
@@ -39,7 +39,7 @@ if ('caches' in window) void caches.delete('api-cache')
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ColorSchemeScript defaultColorScheme="auto" />
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: 'v1' }}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: 'v1', dehydrateOptions: { shouldDehydrateQuery: query => defaultShouldDehydrateQuery(query) && query.queryKey[0] !== 'attachment' } }}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Notifications />
         <BrowserRouter basename="/pwa">
