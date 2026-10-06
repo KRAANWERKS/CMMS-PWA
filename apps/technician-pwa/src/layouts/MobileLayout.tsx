@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, AppShell, Avatar, Badge, Box, Burger, Button, Container, Divider, Drawer, Group, Menu, Modal, NavLink, Select, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Alert, AppShell, Avatar, Box, Burger, Button, Container, Divider, Drawer, Group, Menu, Modal, NavLink, Select, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authService } from '@cmms/api-client'
@@ -193,8 +193,20 @@ function MobileLayoutContent() {
         <Stack>
           <Text size="sm" c="dimmed">Your account can work at more than one site. Choose the site for My Work. You can change it later from Profile.</Text>
           {permittedSites.map(site => (
-            <Button key={site.id} variant="default" justify="space-between" onClick={() => selectSite(site.id)}>
-              <span>{site.name}</span>{site.code && <Badge variant="light" color="gray">{site.code}</Badge>}
+            <Button
+              key={site.id}
+              variant="default"
+              h="auto"
+              py="md"
+              px="md"
+              justify="flex-start"
+              styles={{ inner: { justifyContent: 'flex-start' }, label: { display: 'block', whiteSpace: 'normal', textAlign: 'left', width: '100%', height: 'auto' } }}
+              onClick={() => selectSite(site.id)}
+            >
+              <Stack gap={8} align="flex-start" style={{ width: '100%' }}>
+                <Text fw={700} lh={1.3} ta="left">{site.name}</Text>
+                {site.code && <Text size="sm" c="dimmed" fw={500} lh={1.3} ta="left">Site code: {site.code}</Text>}
+              </Stack>
             </Button>
           ))}
         </Stack>
