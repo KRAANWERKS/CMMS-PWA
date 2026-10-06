@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: 'CMMS Technician PWA',
           short_name: 'CMMS Tech',
-          description: 'CMMS for field engineers; execution requires a connection',
+          description: 'CMMS for field engineers; works offline and syncs when you reconnect',
           theme_color: '#FFA903',
           background_color: '#ffffff',
           display: 'standalone',
@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
           icons: [
             { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
             { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+            { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
         workbox: {
