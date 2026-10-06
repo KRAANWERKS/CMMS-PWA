@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
-  const envDir = path.resolve(__dirname, '../..')
+  const envDir = path.resolve(import.meta.dirname, '../..')
   const env = loadEnv(mode, envDir, '')
 
   return {
@@ -39,10 +39,10 @@ export default defineConfig(({ mode }) => {
     base: '/pwa/',
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@cmms/ui': path.resolve(__dirname, '../../packages/ui/src'),
-        '@cmms/types': path.resolve(__dirname, '../../packages/types/src'),
-        '@cmms/api-client': path.resolve(__dirname, '../../packages/api-client/src'),
+        '@': path.resolve(import.meta.dirname, './src'),
+        '@cmms/ui': path.resolve(import.meta.dirname, '../../packages/ui/src'),
+        '@cmms/types': path.resolve(import.meta.dirname, '../../packages/types/src'),
+        '@cmms/api-client': path.resolve(import.meta.dirname, '../../packages/api-client/src'),
       },
     },
     server: {
