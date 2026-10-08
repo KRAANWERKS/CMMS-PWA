@@ -1,54 +1,38 @@
-import { useQuery } from '@tanstack/react-query'
-import {
-  Badge,
-  Group,
-  Pagination,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-} from '@mantine/core'
-import {
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconClipboardList,
-  IconClock,
-} from '@tabler/icons-react'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Badge, Button, Chip, Group, Pagination, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
+import { useDebouncedValue } from '@mantine/hooks'
+import { IconCircleCheck, IconClipboardList, IconSearch, IconX } from '@tabler/icons-react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { workOrderService } from '@cmms/api-client'
-import { CMMSLoadingState, CMMSErrorState } from '@cmms/ui'
+import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
+import { ListSkeleton } from '../components/Skeletons'
+import { WorkOrderCard } from '../components/WorkOrderCard'
 
 const PAGE_SIZE = 25
-
-const priorityColor: Record<string, string> = {
-  CRITICAL: 'red',
-  HIGH: 'orange',
-  MEDIUM: 'yellow',
-  LOW: 'gray',
-}
-
-const statusIcon: Record<string, typeof IconClock> = {
-  OPEN: IconClock,
-  ASSIGNED: IconClock,
-  IN_PROGRESS: IconAlertTriangle,
-  COMPLETED: IconCircleCheck,
-}
+const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 
 export function AssignedWorkOrders() {
-  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { currentSiteId, currentSite } = useTechnicianSite()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const assetId = searchParams.get('asset') ?? undefined
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [priority, setPriority] = useState<string | null>(null)
+  const [overdueOnly, setOverdueOnly] = useState(false)
+  const [debouncedSearch] = useDebouncedValue(search.trim(), 300)
+
+  const filtered = !!(debouncedSearch || priority || overdueOnly || assetId)
+  const filterKey = [debouncedSearch, priority, overdueOnly, assetId]
+  useEffect(() => setPage(1), [debouncedSearch, priority, overdueOnly, assetId])
 
   const openQuery = useQuery({
-    queryKey: ['technician-work-orders', currentSiteId, 'open', page],
+    queryKey: ['technician-work-orders', currentSiteId, 'open', page, ...filterKey],
     queryFn: () => workOrderService.getWorkOrders({
-      siteId: currentSiteId!,
-      view: 'open',
-      page,
-      pageSize: PAGE_SIZE,
+      siteId: currentSiteId!, view: 'open', page, pageSize: PAGE_SIZE,
+      search: debouncedSearch || undefined, priority: priority ?? undefined, overdue: overdueOnly || undefined, assetId,
     }),
     enabled: !!currentSiteId,
     placeholderData: previous => previous,
@@ -57,18 +41,27 @@ export function AssignedWorkOrders() {
 
   const completedQuery = useQuery({
     queryKey: ['technician-work-orders', currentSiteId, 'completed'],
-    queryFn: () => workOrderService.getWorkOrders({
-      siteId: currentSiteId!,
-      view: 'completed',
-      page: 1,
-      pageSize: 3,
-    }),
+    queryFn: () => workOrderService.getWorkOrders({ siteId: currentSiteId!, view: 'completed', page: 1, pageSize: 3 }),
     enabled: !!currentSiteId,
     staleTime: 2 * 60 * 1000,
   })
 
-  if (!currentSiteId) return <CMMSLoadingState />
-  if (openQuery.isLoading || completedQuery.isLoading) return <CMMSLoadingState />
+  // Save each listed work order's detail so it can be opened offline
+  const listedIds = (openQuery.data?.items ?? []).map(wo => wo.id).join(',')
+  useEffect(() => {
+    if (!listedIds || !navigator.onLine) return
+    for (const id of listedIds.split(',')) {
+      void queryClient.prefetchQuery({ queryKey: ['work-order', id], queryFn: () => workOrderService.getWorkOrderById(id) })
+    }
+  }, [listedIds, queryClient])
+
+  const clearFilters = () => {
+    setSearch(''); setPriority(null); setOverdueOnly(false)
+    if (assetId) setSearchParams({}, { replace: true })
+  }
+
+  if (!currentSiteId || (openQuery.isLoading && !openQuery.data)) return <ListSkeleton />
+  if (openQuery.isPending && openQuery.fetchStatus === 'paused') return <CMMSErrorState message="You're offline and this hasn't been saved on this device yet. Reconnect to load it." />
   if (openQuery.error || completedQuery.error) {
     return <CMMSErrorState message="Failed to load assigned work orders. Check CMMS connectivity and try again." />
   }
@@ -78,117 +71,97 @@ export function AssignedWorkOrders() {
   const openTotal = openQuery.data?.totalCount ?? 0
   const completedTotal = completedQuery.data?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(openTotal / PAGE_SIZE))
+  const assetName = openItems[0]?.assetName
 
   return (
     <Stack gap="md">
-      <div>
-        <Group justify="space-between" align="flex-start">
-          <div>
-            <Text fw={750} size="xl">My Work</Text>
-            <Text size="sm" c="dimmed">{currentSite?.name ?? 'Current site'}</Text>
-          </div>
-          <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>
-        </Group>
-      </div>
+      <Group justify="space-between" align="flex-start">
+        <div>
+          <Text fw={750} size="xl">My Work</Text>
+          <Text size="sm" c="dimmed">{currentSite?.name ?? 'Current site'}</Text>
+        </div>
+        <Stack gap={6} align="flex-end">
+          {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}
+          <Button component={Link} to="/work-requests/new" size="xs" variant="light">Report issue</Button>
+        </Stack>
+      </Group>
 
-      <SimpleGrid cols={2} spacing="xs">
-        <Paper p="sm" radius={6} withBorder>
+      {!filtered && (
+        <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xs">
+          <Paper p="md" radius={6} withBorder>
+            <Group gap="md" wrap="nowrap">
+              <IconClipboardList size="1.625rem" />
+              <div>
+                <Text size="xs" c="dimmed" mb={2}>Open</Text>
+                <Text size="xl" fw={750} lh={1.1}>{openTotal}</Text>
+              </div>
+            </Group>
+          </Paper>
+          <Paper p="md" radius={6} withBorder>
+            <Group gap="md" wrap="nowrap">
+              <IconCircleCheck size="1.625rem" />
+              <div>
+                <Text size="xs" c="dimmed" mb={2}>Completed</Text>
+                <Text size="xl" fw={750} lh={1.1}>{completedTotal}</Text>
+              </div>
+            </Group>
+          </Paper>
+        </SimpleGrid>
+      )}
+
+      <Stack gap="xs">
+        <TextInput
+          placeholder="Search work orders…"
+          aria-label="Search work orders"
+          leftSection={<IconSearch size="1.25rem" />}
+          rightSection={search ? <IconX size="1.25rem" style={{ cursor: 'pointer' }} onClick={() => setSearch('')} /> : null}
+          value={search}
+          onChange={event => setSearch(event.currentTarget.value)}
+        />
+        <Group gap={6}>
+          <Chip size="xs" checked={overdueOnly} onChange={setOverdueOnly} color="red" variant="light">Overdue</Chip>
+          {PRIORITIES.map(value => (
+            <Chip key={value} size="xs" checked={priority === value} onChange={checked => setPriority(checked ? value : null)} variant="light">
+              {value.charAt(0) + value.slice(1).toLowerCase()}
+            </Chip>
+          ))}
+        </Group>
+        {assetId && (
           <Group gap={6}>
-            <IconClipboardList size={18} />
-            <div>
-              <Text size="xs" c="dimmed">Open</Text>
-              <Text size="lg" fw={750}>{openTotal}</Text>
-            </div>
+            <Badge variant="light" color="gray" size="lg" rightSection={<IconX size="1rem" style={{ cursor: 'pointer' }} onClick={() => setSearchParams({}, { replace: true })} />}>
+              Asset: {assetName ?? 'selected asset'}
+            </Badge>
           </Group>
-        </Paper>
-        <Paper p="sm" radius={6} withBorder>
-          <Group gap={6}>
-            <IconCircleCheck size={18} />
-            <div>
-              <Text size="xs" c="dimmed">Completed</Text>
-              <Text size="lg" fw={750}>{completedTotal}</Text>
-            </div>
-          </Group>
-        </Paper>
-      </SimpleGrid>
+        )}
+      </Stack>
 
       <Stack gap="xs">
         {openItems.length > 0 ? (
-          openItems.map((wo) => {
-            const Icon = statusIcon[wo.status] || IconClock
-            return (
-              <Paper
-                key={wo.id}
-                p="md"
-                radius={6}
-                withBorder
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/work-orders/${wo.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return
-                  event.preventDefault()
-                  navigate(`/work-orders/${wo.id}`)
-                }}
-                style={{ cursor: 'pointer', minHeight: 84 }}
-              >
-                <Group justify="space-between" mb={5} wrap="nowrap">
-                  <Group gap={7} wrap="nowrap">
-                    <ThemeIcon size="md" variant="light" color={priorityColor[wo.priority] || 'gray'}>
-                      <Icon size={16} />
-                    </ThemeIcon>
-                    <Text fw={700} size="sm">{wo.number}</Text>
-                  </Group>
-                  <Badge size="xs" variant="light" color={priorityColor[wo.priority] || 'gray'}>{wo.priority}</Badge>
-                </Group>
-                <Text size="sm" fw={550} lineClamp={2}>{wo.title}</Text>
-                <Group justify="space-between" mt={5} wrap="nowrap">
-                  <Text size="xs" c="dimmed">{wo.assetName || wo.workType}</Text>
-                  <Badge size="xs" variant="outline" color="gray">{wo.status.replace('_', ' ')}</Badge>
-                </Group>
-              </Paper>
-            )
-          })
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
+            {openItems.map(wo => <WorkOrderCard key={wo.id} wo={wo} />)}
+          </SimpleGrid>
         ) : (
           <Paper p="lg" radius={6} withBorder>
-            <Text size="sm" c="dimmed" ta="center">No open assigned work orders at this site.</Text>
+            <Stack gap="xs" align="center">
+              <Text size="sm" c="dimmed" ta="center">
+                {filtered ? 'No work orders match these filters.' : "You're all caught up — no open work orders at this site. Pull down to refresh."}
+              </Text>
+              {filtered && <Button variant="light" size="sm" onClick={clearFilters}>Clear filters</Button>}
+            </Stack>
           </Paper>
         )}
 
         {totalPages > 1 && <Group justify="center" mt="xs"><Pagination value={page} onChange={setPage} total={totalPages} /></Group>}
 
-        {completedItems.length > 0 && (
+        {!filtered && completedItems.length > 0 && (
           <>
             <Group justify="space-between" mt="md">
               <Text size="xs" c="dimmed" fw={650} tt="uppercase">Recently completed</Text>
               <Text size="xs" c="dimmed">Showing {completedItems.length} of {completedTotal}</Text>
             </Group>
-            {completedItems.map((wo) => (
-              <Paper
-                key={wo.id}
-                p="sm"
-                radius={6}
-                withBorder
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/work-orders/${wo.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return
-                  event.preventDefault()
-                  navigate(`/work-orders/${wo.id}`)
-                }}
-                style={{ cursor: 'pointer' }}
-              >
-                <Group justify="space-between">
-                  <Group gap={6}>
-                    <IconCircleCheck size={14} />
-                    <Text size="sm" fw={600}>{wo.number}</Text>
-                  </Group>
-                  <Badge size="xs" color="teal" variant="light">Done</Badge>
-                </Group>
-                <Text size="xs" c="dimmed" lineClamp={1}>{wo.title}</Text>
-              </Paper>
-            ))}
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
+              {completedItems.map(wo => <WorkOrderCard key={wo.id} wo={wo} />)}
+            </SimpleGrid>
           </>
         )}
       </Stack>

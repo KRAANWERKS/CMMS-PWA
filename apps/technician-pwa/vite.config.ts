@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
-  const envDir = path.resolve(__dirname, '../..')
+  const envDir = path.resolve(import.meta.dirname, '../..')
   const env = loadEnv(mode, envDir, '')
 
   return {
@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: 'CMMS Technician PWA',
           short_name: 'CMMS Tech',
-          description: 'CMMS for field engineers; execution requires a connection',
+          description: 'CMMS for field engineers; works offline and syncs when you reconnect',
           theme_color: '#FFA903',
           background_color: '#ffffff',
           display: 'standalone',
@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
           icons: [
             { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
             { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+            { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
         workbox: {
@@ -38,10 +39,10 @@ export default defineConfig(({ mode }) => {
     base: '/pwa/',
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@cmms/ui': path.resolve(__dirname, '../../packages/ui/src'),
-        '@cmms/types': path.resolve(__dirname, '../../packages/types/src'),
-        '@cmms/api-client': path.resolve(__dirname, '../../packages/api-client/src'),
+        '@': path.resolve(import.meta.dirname, './src'),
+        '@cmms/ui': path.resolve(import.meta.dirname, '../../packages/ui/src'),
+        '@cmms/types': path.resolve(import.meta.dirname, '../../packages/types/src'),
+        '@cmms/api-client': path.resolve(import.meta.dirname, '../../packages/api-client/src'),
       },
     },
     server: {

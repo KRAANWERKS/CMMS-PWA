@@ -1,0 +1,39 @@
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.9s linear infinite; }
+
+/* Keep the pull-to-refresh gesture ours instead of the browser's */
+body { overscroll-behavior-y: contain; }
+
+/*
+ * High-contrast palette (WCAG AA or better) for secondary text, borders and tinted badges.
+ * Mantine's defaults for these are around 3:1 on white.
+ */
+:root[data-mantine-color-scheme='light'] {
+  --mantine-color-text: #111418;
+  --mantine-color-dimmed: #454d55;
+  --mantine-color-placeholder: #5f6770;
+  --mantine-color-default-border: #8b949e;
+  --mantine-color-red-light-color: var(--mantine-color-red-9);
+  --mantine-color-orange-light-color: #9a3412;
+  --mantine-color-yellow-light-color: #7a4600;
+  --mantine-color-teal-light-color: #0b5f48;
+  --mantine-color-blue-light-color: var(--mantine-color-blue-9);
+  --mantine-color-violet-light-color: var(--mantine-color-violet-9);
+  --mantine-color-gray-light-color: var(--mantine-color-gray-9);
+  --mantine-color-dark-light-color: var(--mantine-color-dark-9);
+}
+
+:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-text: #f4f6f8;
+  --mantine-color-dimmed: #c9ced4;
+  --mantine-color-placeholder: #a9b0b8;
+  --mantine-color-default-border: #6b727a;
+  --mantine-color-red-light-color: var(--mantine-color-red-2);
+  --mantine-color-orange-light-color: var(--mantine-color-orange-2);
+  --mantine-color-yellow-light-color: var(--mantine-color-yellow-2);
+  --mantine-color-teal-light-color: var(--mantine-color-teal-2);
+  --mantine-color-blue-light-color: var(--mantine-color-blue-2);
+  --mantine-color-violet-light-color: var(--mantine-color-violet-2);
+  --mantine-color-gray-light-color: var(--mantine-color-gray-2);
+  --mantine-color-dark-light-color: var(--mantine-color-gray-2);
+}
