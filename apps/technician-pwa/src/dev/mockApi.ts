@@ -92,8 +92,8 @@ const workOrders: WorkOrderDto[] = [
 
 const transitionsFor = (status: string) =>
   status === 'OPEN' || status === 'ASSIGNED' ? ['IN_PROGRESS']
-    : status === 'IN_PROGRESS' ? ['COMPLETED', 'ON_HOLD']
-    : status === 'ON_HOLD' ? ['IN_PROGRESS'] : []
+    // Technicians can only start or complete; the real server answers 403 for ON_HOLD and other statuses
+    : status === 'IN_PROGRESS' ? ['COMPLETED'] : []
 const syncTransitions = (item: WorkOrderDto) => { item.allowedTransitions = transitionsFor(item.status) }
 workOrders.forEach(syncTransitions)
 

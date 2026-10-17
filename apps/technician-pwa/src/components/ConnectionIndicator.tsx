@@ -6,7 +6,7 @@ const display: Record<ConnectionState, { label: string; color: string; detail: s
   online: { label: 'Online', color: 'var(--mantine-color-teal-6)', detail: 'Connected. Data is up to date.' },
   syncing: { label: 'Syncing', color: 'var(--mantine-color-blue-6)', detail: 'Refreshing data from the server.' },
   unreachable: { label: 'No server', color: 'var(--mantine-color-orange-6)', detail: 'Your device has a network, but the CMMS server did not respond. Showing saved data.' },
-  offline: { label: 'Offline', color: 'var(--mantine-color-red-6)', detail: 'No network. Showing saved data; changes are disabled until you reconnect.' },
+  offline: { label: 'Offline', color: 'var(--mantine-color-red-6)', detail: 'No network. Showing saved data. Changes are saved on this device and sent when you reconnect.' },
 }
 
 export function formatSynced(timestamp: number | null) {
@@ -19,14 +19,16 @@ export function formatSynced(timestamp: number | null) {
 export function ConnectionIndicator() {
   const { state, lastSyncedAt, pendingCount, failed } = useConnectionStatus()
   const { label, color, detail } = display[state]
-  const shownLabel = pendingCount > 0 ? `${label} · ${pendingCount} to sync` : label
+  // A rejected change is thrown away by the server, so make it visible without opening the popover
+  const shownLabel = failed.length > 0 ? `${label} · ${failed.length} rejected` : pendingCount > 0 ? `${label} · ${pendingCount} to sync` : label
+  const dotColor = failed.length > 0 ? 'var(--mantine-color-red-6)' : color
 
   return (
     <Popover width={280} position="bottom-end" withArrow shadow="md">
       <Popover.Target>
         <UnstyledButton aria-label={`Connection status: ${shownLabel}`} px={12} py={8} style={{ borderRadius: 999, border: '1px solid var(--mantine-color-default-border)' }}>
           <Group gap={6} wrap="nowrap">
-            <Box w={12} h={12} style={{ borderRadius: 999, background: color, flexShrink: 0 }} />
+            <Box w={12} h={12} style={{ borderRadius: 999, background: dotColor, flexShrink: 0 }} />
             <Text size="sm" fw={700} visibleFrom="sm">{shownLabel}</Text>
           </Group>
         </UnstyledButton>

@@ -139,7 +139,7 @@ function MobileLayoutContent() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {!isOnline && <Alert color="yellow" radius={0} py={8}>You're offline. Showing saved data · {formatSynced(lastSyncedAt)}. Changes are disabled until you reconnect.</Alert>}
+        {!isOnline && <Alert color="yellow" radius={0} py={8}>You're offline. Showing saved data · {formatSynced(lastSyncedAt)}. Changes are saved on this device and sent when you reconnect.</Alert>}
         {signOutError && <Alert color="red" radius={0} py={8} withCloseButton={false}>{signOutError}</Alert>}
         <PullToRefresh onRefresh={refresh}>
         <Container size={960} px={16} py={14}>

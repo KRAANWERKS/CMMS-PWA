@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Accordion, Alert, Box, Button, Divider, Group, NumberInput, Paper, Progress, Select, Stack, Text, Textarea, TextInput } from '@mantine/core'
 import { IconCheck, IconChevronRight, IconClock, IconGauge, IconHistory, IconPackage, IconSend, IconTool } from '@tabler/icons-react'
 import { getApiError, workOrderService, type WorkOrderDto } from '@cmms/api-client'
 import { CMMSErrorState } from '@cmms/ui'
 import { PriorityBadge, StatusBadge } from '../components/Badges'
 import { DetailSkeleton } from '../components/Skeletons'
+import { db } from '../db/schema'
 import { submitChange, withPendingChanges, applyEntry, type NewEntry } from '../db/sync'
 import { TaskPhotos } from '../components/TaskPhotos'
 import { MeterReadingTask } from '../components/MeterReadingTask'
@@ -55,14 +57,14 @@ export function WorkOrderExecute() {
     staleTime: 10 * 60_000,
     retry: false,
   })
-  const [queuedCount, setQueuedCount] = useState(0)
+  // Changes for this work order still waiting on this device (clears itself once they have synced)
+  const queuedCount = useLiveQuery(() => db.outbox.where('workOrderId').equals(id ?? '').filter(entry => entry.status === 'PENDING').count(), [id], 0)
   // Saves locally first, shows the result immediately, then syncs when a connection is available
   const send = async (entry: NewEntry) => {
-    const outcome = await submitChange(entry, saved => {
+    await submitChange(entry, saved => {
       queryClient.setQueryData<WorkOrderDto>(['work-order', id], current => current && applyEntry(current, saved))
     })
     setSavedAt(new Date())
-    if (outcome === 'queued') setQueuedCount(count => count + 1)
   }
   // The server rejected the change (or sending failed): drop the optimistic result
   const rollback = () => { queryClient.invalidateQueries({ queryKey: ['work-order', id] }) }
@@ -175,7 +177,7 @@ export function WorkOrderExecute() {
                     <Box w={26} h={26} bg="green.6" style={{ borderRadius: 4, display: 'grid', placeItems: 'center', flexShrink: 0 }}><IconCheck size="1rem" color="white" stroke={3} /></Box>
                     <Text size="sm">{task.description}</Text>
                   </Group>
-                  <Button size="md" variant="light" color="gray" mih={44} disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: false, responseValue: response })}>Edit</Button>
+                  <Button size="md" variant="light" color="gray" mih={44} style={{ flexShrink: 0 }} disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: false, responseValue: response })}>Edit</Button>
                 </Group>
               </Paper>
             )
