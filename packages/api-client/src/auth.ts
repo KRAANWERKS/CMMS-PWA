@@ -36,9 +36,11 @@ export interface SiteDto {
 
 export function getApiError(error: unknown, fallback = 'Request failed'): string {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { detail?: string; title?: string; message?: string } | string | undefined
+    const data = error.response?.data as { detail?: string; title?: string; message?: string; errors?: Record<string, string[]> } | string | undefined
     if (typeof data === 'string') return data || error.message || fallback
-    return data?.detail || data?.message || data?.title || error.message || fallback
+    // ASP.NET validation problems carry the useful text in `errors`, not `title`
+    const fieldErrors = data?.errors ? Object.values(data.errors).flat().filter(Boolean).join(' ') : ''
+    return data?.detail || data?.message || fieldErrors || data?.title || error.message || fallback
   }
   return error instanceof Error ? error.message : fallback
 }

@@ -14,6 +14,7 @@ export type {
   WorkOrderPmOriginDto,
   WorkOrderHistoryEntryDto,
   TaskAttachmentDto,
+  MeasurementEvidenceDto,
   CreateWorkRequest,
   GetWorkOrdersParams,
   GetWorkOrdersResponse,

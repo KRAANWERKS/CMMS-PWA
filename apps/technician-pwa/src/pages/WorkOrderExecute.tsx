@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Accordion, Alert, Box, Button, Divider, Group, NumberInput, Paper, Progress, Select, Stack, Text, Textarea, TextInput } from '@mantine/core'
-import { IconCheck, IconChevronRight, IconClock, IconHistory, IconPackage, IconSend, IconTool } from '@tabler/icons-react'
+import { IconCheck, IconChevronRight, IconClock, IconGauge, IconHistory, IconPackage, IconSend, IconTool } from '@tabler/icons-react'
 import { getApiError, workOrderService, type WorkOrderDto } from '@cmms/api-client'
 import { CMMSErrorState } from '@cmms/ui'
 import { PriorityBadge, StatusBadge } from '../components/Badges'
@@ -262,11 +262,25 @@ export function WorkOrderExecute() {
         <Accordion.Item value="parts">
           <Accordion.Control icon={<IconPackage size="1.375rem" />}>Parts used</Accordion.Control>
           <Accordion.Panel>
-            <Text size="xs" c="dimmed" mb="xs">Parts usage is read-only here. Material requests are unavailable until the Odoo contract is finalized.</Text>
+            <Text size="xs" c="dimmed" mb="xs">Parts usage is read-only here. Stock movements are confirmed in Odoo and synced to the work order.</Text>
             {(wo.usage || []).map((item, index) => <Group key={`${item.sparePartId || item.partNumber}-${index}`} justify="space-between"><Text size="sm">{item.partNumber || item.sparePartId || 'Part'}</Text><Text size="sm">×{item.quantity}</Text></Group>)}
             {!wo.usage?.length && <Text size="sm" c="dimmed">No confirmed parts usage.</Text>}
           </Accordion.Panel>
         </Accordion.Item>
+
+        {!!wo.measurementEvidence?.length && <Accordion.Item value="readings">
+          <Accordion.Control icon={<IconGauge size="1.375rem" />}>Readings recorded</Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap={6}>
+              {[...wo.measurementEvidence].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)).map(reading => (
+                <Group key={reading.id} justify="space-between" wrap="nowrap" align="flex-start">
+                  <Text size="xs" c="dimmed">{new Date(reading.recordedAt).toLocaleString()}</Text>
+                  <Text size="sm" fw={600}>{reading.value.toLocaleString()} {reading.unit}</Text>
+                </Group>
+              ))}
+            </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>}
 
         <Accordion.Item value="history">
           <Accordion.Control icon={<IconHistory size="1.375rem" />}>History</Accordion.Control>

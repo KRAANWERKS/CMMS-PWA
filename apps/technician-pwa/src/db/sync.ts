@@ -87,7 +87,7 @@ export function startOutboxSync(queryClient: QueryClient) {
 
 // ---- Showing queued changes before the server has them ------------------------
 
-const heuristicTransitions: Record<string, string[]> = { IN_PROGRESS: ['COMPLETED', 'ON_HOLD'], ON_HOLD: ['IN_PROGRESS'], COMPLETED: [] }
+const heuristicTransitions: Record<string, string[]> = { IN_PROGRESS: ['COMPLETED'], COMPLETED: [] }
 
 export function applyEntry(wo: WorkOrderDto, entry: OutboxEntry): WorkOrderDto {
   const p = entry.payload as Record<string, any>

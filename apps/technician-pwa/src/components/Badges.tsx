@@ -8,6 +8,8 @@ const statusStyle: Record<string, { label: string; color: string }> = {
   IN_PROGRESS: { label: 'In progress', color: 'blue' },
   ON_HOLD: { label: 'On hold', color: 'orange' },
   COMPLETED: { label: 'Done', color: 'teal' },
+  CLOSED: { label: 'Closed', color: 'teal' },
+  CANCELLED: { label: 'Cancelled', color: 'red' },
 }
 
 const priorityStyle: Record<string, { label: string; color: string }> = {
