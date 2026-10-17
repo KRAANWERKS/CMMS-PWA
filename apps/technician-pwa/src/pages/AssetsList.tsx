@@ -119,7 +119,7 @@ function MeterRecorder({ assetId, meter }: { assetId: string; meter: AssetMeterD
   return <Paper p="xs" radius="sm" bg="var(--mantine-color-gray-light)">
     <Text size="sm" fw={600}>{meter.name}</Text>
     <Text size="xs" c="dimmed" mb="xs">Current: {meter.currentReading?.toLocaleString() ?? 'No reading'} {meter.unit}</Text>
-    <NumberInput label="New reading" value={value} onChange={setValue} min={meter.currentReading ?? 0} suffix={` ${meter.unit}`} decimalScale={3} />
+    <NumberInput label="New reading" value={value} onChange={setValue} clampBehavior="none" allowNegative={false} suffix={` ${meter.unit}`} decimalScale={3} error={value !== '' && Number(value) < (meter.currentReading ?? 0) ? `Cannot be lower than the current reading (${meter.currentReading?.toLocaleString()})` : undefined} />
     <TextInput label="Note (optional)" value={note} onChange={event => setNote(event.currentTarget.value)} maxLength={500} mt="xs" />
     <Button fullWidth mt="xs" loading={save.isPending} disabled={value === '' || Number(value) < (meter.currentReading ?? 0)} onClick={() => save.mutate()}>Save meter reading</Button>
     {save.isSuccess && queued && <Alert color="blue" mt="xs">Saved on this device. It will sync when you're back online.</Alert>}

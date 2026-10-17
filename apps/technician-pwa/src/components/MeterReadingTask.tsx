@@ -34,7 +34,8 @@ export function MeterReadingTask({ task, disabled, loading, onSave }: Props) {
         description={current !== null ? `Last reading: ${current.toLocaleString()} ${meter.unit}` : undefined}
         value={value}
         onChange={setValue}
-        min={current ?? 0}
+        clampBehavior="none"
+        allowNegative={false}
         decimalScale={3}
         disabled={disabled}
         error={tooLow ? `Cannot be lower than the last reading (${current!.toLocaleString()})` : undefined}

@@ -160,6 +160,12 @@ export function WorkOrderExecute() {
           const response = taskResponses[task.id] ?? task.responseValue ?? ''
           const photoCount = task.attachments?.length ?? 0
           const photosMissing = (task.minimumPhotoCount ?? 0) > photoCount
+          const numeric = Number(response)
+          const rangeError = task.responseType === 'NUMBER' && response.trim() !== '' && (
+            !Number.isFinite(numeric) ||
+            (task.minimumValue != null && numeric < task.minimumValue) ||
+            (task.maximumValue != null && numeric > task.maximumValue)
+          ) ? `Must be between ${task.minimumValue ?? 'no minimum'} and ${task.maximumValue ?? 'no maximum'}` : undefined
 
           if (done) {
             return (
@@ -199,15 +205,15 @@ export function WorkOrderExecute() {
                   <NumberInput
                     label={`${task.description.replace(/^Record\s+/i, '')}${task.unit ? ` (${task.unit})` : ''}`}
                     value={response}
-                    min={task.minimumValue ?? undefined}
-                    max={task.maximumValue ?? undefined}
+                    clampBehavior="none"
+                    error={rangeError}
                     disabled={wo.status !== 'IN_PROGRESS'}
                     onChange={value => setTaskResponses(current => ({ ...current, [task.id]: String(value ?? '') }))}
                     rightSection={task.unit ? <Text size="xs" c="dimmed">{task.unit}</Text> : undefined}
                   />
                   {task.linkedMeter && <Alert color="blue" variant="light" py={6}>Saving this instruction also updates {task.linkedMeter.name}.</Alert>}
                   {(task.minimumValue != null || task.maximumValue != null) && <Text size="xs" c="dimmed">Allowed: {task.minimumValue ?? 'no minimum'} to {task.maximumValue ?? 'no maximum'}</Text>}
-                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim()} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
+                  <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim() || !!rangeError} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>
                 </Stack>
               ) : task.responseType === 'SELECT' ? (
                 <Stack gap={8}>
