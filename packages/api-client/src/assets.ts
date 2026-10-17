@@ -140,13 +140,16 @@ export const assetService = {
   // The server caps pageSize at 500, so larger sites need several pages
   async getAllAssets(siteId: string, search?: string): Promise<GetAssetsResponse> {
     const pageSize = 500
-    const items: AssetDto[] = []
-    for (let page = 1; ; page++) {
+    const items = new Map<string, AssetDto>()
+    for (let page = 1; page <= 40; page++) {
       const batch = (await assetService.getAssets({ siteId, search, page, pageSize })).items
-      items.push(...batch)
-      if (batch.length < pageSize) break
+      const before = items.size
+      for (const asset of batch) items.set(asset.id, asset)
+      // A short page is the last one; no new rows means the server is repeating a page
+      if (batch.length < pageSize || items.size === before) break
     }
-    return { items, totalCount: items.length, page: 1, pageSize: items.length }
+    const all = [...items.values()]
+    return { items: all, totalCount: all.length, page: 1, pageSize: all.length }
   },
 
   async getAssetById(id: string): Promise<AssetDto> {

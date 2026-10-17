@@ -31,6 +31,7 @@ function isRetryable(error: unknown) {
 async function run(): Promise<number> {
   if (!navigator.onLine) return 0
   let sent = 0
+  let rejected = 0
   for (;;) {
     const next = await db.outbox.orderBy('id').filter(entry => entry.status === 'PENDING').first()
     if (!next) break
@@ -41,9 +42,10 @@ async function run(): Promise<number> {
     } catch (error) {
       if (isRetryable(error)) break
       await db.outbox.update(next.id!, { status: 'FAILED', error: getApiError(error, 'The server rejected this change') })
+      rejected++
     }
   }
-  if (sent > 0 && client && await db.outbox.where('status').equals('PENDING').count() === 0) {
+  if ((sent > 0 || rejected > 0) && client && await db.outbox.where('status').equals('PENDING').count() === 0) {
     await client.invalidateQueries()
   }
   return sent

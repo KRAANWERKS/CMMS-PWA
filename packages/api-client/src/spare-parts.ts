@@ -63,13 +63,16 @@ export const sparePartService = {
   // The server caps pageSize at 100, so the full catalogue needs several pages
   async getAllSpareParts(): Promise<GetSparePartsResponse> {
     const pageSize = 100
-    const items: SparePartDto[] = []
-    for (let page = 1; ; page++) {
+    const items = new Map<string, SparePartDto>()
+    for (let page = 1; page <= 100; page++) {
       const batch = (await sparePartService.getSpareParts({ page, pageSize })).items
-      items.push(...batch)
-      if (batch.length < pageSize) break
+      const before = items.size
+      for (const part of batch) items.set(part.id, part)
+      // A short page is the last one; no new rows means the server is repeating a page
+      if (batch.length < pageSize || items.size === before) break
     }
-    return { items, totalCount: items.length, page: 1, pageSize: items.length }
+    const all = [...items.values()]
+    return { items: all, totalCount: all.length, page: 1, pageSize: all.length }
   },
 
   async getSparePartById(id: string): Promise<SparePartDto> {
