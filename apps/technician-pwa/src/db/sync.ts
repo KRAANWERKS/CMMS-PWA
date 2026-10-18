@@ -18,7 +18,7 @@ async function send(entry: OutboxEntry) {
     case 'STATUS': return workOrderService.changeStatus(entry.workOrderId!, p.status)
     case 'COMPLETE': return workOrderService.complete(entry.workOrderId!, p.notes)
     case 'PHOTO': return workOrderService.uploadTaskAttachment(entry.workOrderId!, p.taskId, p.blob as Blob, p.fileName)
-    case 'METER': return assetService.recordMeterReading(entry.assetId!, p.meterId, p.value, p.note, entry.workOrderId, p.readingAt)
+    case 'METER': return assetService.recordMeterReading(entry.assetId!, p.meterId, p.value, p.note, undefined, p.readingAt)
   }
 }
 

@@ -71,6 +71,7 @@ const workOrders: WorkOrderDto[] = [
     task(2, 'Replace mechanical seal', 'CHECKBOX'),
   ], { description: 'Waiting on mechanical seal 30 mm (PMP-SEAL-MECH-30).', actualStart: ago(2) }),
   wo(5, 'site-vessel', 'a2', 'Starboard engine air filter check', 'OPEN', 'LOW', 'PREVENTIVE', [
+    task(3, 'Check the engine hour meter', 'CHECKBOX', { linkedAsset: { id: 'a2', assetCode: 'KST-ME-02', name: 'Main Engine Starboard' }, linkedMeter: { id: 'mock-meter-2', name: 'Running hours', unit: 'h' } }),
     task(1, 'Inspect primary air filter element', 'CHECKBOX'),
     task(2, 'Findings', 'TEXT'),
   ]),

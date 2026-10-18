@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Group, NumberInput, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { IconClipboardList, IconGauge, IconSearch, IconTool } from '@tabler/icons-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { assetService, getApiError, type AssetDto, type AssetMeterDto, type GetAssetsResponse } from '@cmms/api-client'
 import { CMMSEmptyState, CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
@@ -16,10 +16,11 @@ const healthColor: Record<string, string> = { GOOD: 'teal', WATCH: 'yellow', BAD
 
 export default function AssetsList() {
   const { currentSiteId } = useTechnicianSite()
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get('search') ?? '')
   const [debounced] = useDebouncedValue(search.trim().toLowerCase(), 250)
   const [visible, setVisible] = useState(PAGE_STEP)
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(searchParams.get('open'))
 
   const { data, isLoading, isPending, fetchStatus, error } = useQuery({
     queryKey: ['assets', currentSiteId],
@@ -34,7 +35,10 @@ export default function AssetsList() {
   if (error) return <CMMSErrorState message="Failed to load assets" />
 
   const items = data?.items || []
-  const filtered = debounced ? items.filter(a => `${a.name} ${a.assetCode}`.toLowerCase().includes(debounced)) : items
+  const matches = debounced ? items.filter(a => `${a.name} ${a.assetCode}`.toLowerCase().includes(debounced)) : items
+  // Arriving from a work order: put that asset first so its open meter form is not buried below other matches
+  const pinnedId = searchParams.get('open')
+  const filtered = pinnedId ? [...matches].sort((a, b) => Number(b.id === pinnedId) - Number(a.id === pinnedId)) : matches
   const shown = filtered.slice(0, visible)
 
   return (

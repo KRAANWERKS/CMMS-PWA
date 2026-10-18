@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Accordion, Alert, Box, Button, Divider, Group, NumberInput, Paper, Progress, Select, Stack, Text, Textarea, TextInput } from '@mantine/core'
@@ -11,7 +11,6 @@ import { DetailSkeleton } from '../components/Skeletons'
 import { db } from '../db/schema'
 import { submitChange, withPendingChanges, applyEntry, type NewEntry } from '../db/sync'
 import { TaskPhotos } from '../components/TaskPhotos'
-import { MeterReadingTask } from '../components/MeterReadingTask'
 import { WorkOrderHistory } from '../components/WorkOrderHistory'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 
@@ -70,11 +69,6 @@ export function WorkOrderExecute() {
   const rollback = () => { queryClient.invalidateQueries({ queryKey: ['work-order', id] }) }
   const statusMutation = useMutation({ mutationFn: (status: string) => send({ action: 'STATUS', workOrderId: id!, payload: { status } }), onError: rollback })
   const taskMutation = useMutation({ mutationFn: ({ taskId, completed, responseValue }: { taskId: string; completed: boolean; responseValue?: string }) => send({ action: 'TASK', workOrderId: id!, payload: { taskId, completed, responseValue } }), onError: rollback })
-  // Records the reading on the meter (linked to this work order), then completes the instruction
-  const meterMutation = useMutation({ mutationFn: async ({ taskId, assetId, meterId, value }: { taskId: string; assetId: string; meterId: string; value: number }) => {
-    await send({ action: 'METER', workOrderId: id!, assetId, payload: { meterId, value, readingAt: new Date().toISOString() } })
-    await send({ action: 'TASK', workOrderId: id!, payload: { taskId, completed: true } })
-  }, onError: rollback })
   const laborMutation = useMutation({ mutationFn: () => send({ action: 'LABOR', workOrderId: id!, payload: { hours: laborHours, workedAt: new Date().toISOString(), note: laborNote || undefined } }), onSuccess: () => { sessionLaborLogged.current = true; setLaborHours(0); setLaborEdited(false); setLaborNote('') }, onError: rollback })
   const completeMutation = useMutation({ mutationFn: async () => {
     if ((query.data?.totalLaborHours ?? 0) <= 0 && !sessionLaborLogged.current) {
@@ -85,7 +79,7 @@ export function WorkOrderExecute() {
   }, onSuccess: () => setCompletionNotes(''), onError: rollback })
 
   const wo = query.data
-  const mutations = [statusMutation, taskMutation, meterMutation, laborMutation, completeMutation]
+  const mutations = [statusMutation, taskMutation, laborMutation, completeMutation]
   const mutationError = mutations.find(mutation => mutation.error)?.error
   const saving = mutations.some(mutation => mutation.isPending)
   const actionable = (wo?.tasks || []).filter(task => task.responseType !== 'INFORMATION')
@@ -198,10 +192,16 @@ export function WorkOrderExecute() {
             <Paper id={`instruction-${task.id}`} key={task.id} withBorder radius={6} p={12}>
               <Group gap={10} wrap="nowrap" mb={10}><Box w={26} h={26} style={{ borderRadius: 999, border: '1.5px solid var(--mantine-color-text)', flexShrink: 0 }} /><Text size="sm" fw={650}>{task.description}</Text></Group>
 
-              {task.responseType === 'CHECKBOX' && task.linkedMeter && task.linkedAsset ? (
-                <MeterReadingTask task={task} disabled={wo.status !== 'IN_PROGRESS' || photosMissing} loading={meterMutation.isPending} onSave={value => meterMutation.mutate({ taskId: task.id, assetId: task.linkedAsset!.id, meterId: task.linkedMeter!.id, value })} />
-              ) : task.responseType === 'CHECKBOX' ? (
-                <Button fullWidth color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true })}>Mark complete</Button>
+              {task.responseType === 'CHECKBOX' ? (
+                <Stack gap={8}>
+                  {task.linkedMeter && task.linkedAsset && (
+                    <Alert color="blue" variant="light" py={6}>
+                      <Text size="sm">This step needs a {task.linkedMeter.name} reading. Record it on the asset so the meter updates.</Text>
+                      <Button component={Link} to={`/assets?search=${encodeURIComponent(task.linkedAsset.assetCode ?? '')}&open=${task.linkedAsset.id}`} size="sm" h={44} variant="default" mt={6}>Record meter reading</Button>
+                    </Alert>
+                  )}
+                  <Button fullWidth color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true })}>Mark complete</Button>
+                </Stack>
               ) : task.responseType === 'NUMBER' ? (
                 <Stack gap={8}>
                   <NumberInput
