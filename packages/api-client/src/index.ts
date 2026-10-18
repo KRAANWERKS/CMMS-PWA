@@ -38,5 +38,8 @@ export type {
 } from './spare-parts'
 export { sparePartService } from './spare-parts'
 
+export type { MonitoringItemDto, MonitoringSummaryDto, MonitoringPageDto } from './monitoring'
+export { monitoringService } from './monitoring'
+
 export { authService, identityService, siteService, getApiError } from './auth'
 export type { CurrentUser, IdentityUser, SiteDto } from './auth'

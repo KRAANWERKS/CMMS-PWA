@@ -26,7 +26,7 @@ async function shrinkImage(file: File): Promise<{ blob: Blob; name: string }> {
   return { blob: file, name: file.name }
 }
 
-function Thumb({ attachment }: { attachment: TaskAttachmentDto }) {
+export function AttachmentThumb({ attachment }: { attachment: TaskAttachmentDto }) {
   const image = attachment.contentType ? attachment.contentType.startsWith('image/') : true
   // A photo still waiting to upload lives in the on-device outbox, not on the server
   const pendingId = attachment.id.startsWith('pending-') ? Number(attachment.id.slice('pending-'.length)) : null
@@ -57,9 +57,11 @@ interface Props {
   attachments: TaskAttachmentDto[]
   minimum: number
   disabled?: boolean
+  /** Show the photos only (finished steps): no counter, no camera button */
+  readOnly?: boolean
 }
 
-export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled }: Props) {
+export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled, readOnly }: Props) {
   const queryClient = useQueryClient()
   const input = useRef<HTMLInputElement>(null)
   const upload = useMutation({
@@ -74,6 +76,8 @@ export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled
   })
   const missing = Math.max(0, minimum - attachments.length)
 
+  if (readOnly) return attachments.length ? <Group gap={6}>{attachments.map(item => <AttachmentThumb key={item.id} attachment={item} />)}</Group> : null
+
   return (
     <Stack gap={6}>
       {(minimum > 0 || attachments.length > 0) && (
@@ -81,7 +85,7 @@ export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled
           {minimum > 0 ? `Photos: ${attachments.length} of ${minimum} required` : `Photos: ${attachments.length}`}
         </Text>
       )}
-      {attachments.length > 0 && <Group gap={6}>{attachments.map(item => <Thumb key={item.id} attachment={item} />)}</Group>}
+      {attachments.length > 0 && <Group gap={6}>{attachments.map(item => <AttachmentThumb key={item.id} attachment={item} />)}</Group>}
       <input
         ref={input}
         type="file"

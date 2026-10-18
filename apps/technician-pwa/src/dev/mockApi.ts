@@ -49,8 +49,12 @@ function wo(n: number, siteId: string, assetId: string, title: string, status: s
 
 const workOrders: WorkOrderDto[] = [
   wo(1, 'site-vessel', 'a1', 'Main engine 250h service', 'IN_PROGRESS', 'HIGH', 'PREVENTIVE', [
-    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED' }),
-    task(2, 'Record lube oil pressure', 'NUMBER', { unit: 'bar', minimumValue: 3, maximumValue: 6 }),
+    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED', attachments: [{ id: 'att-1', fileName: 'tagout.png', contentType: 'image/png' }] }),
+    task(2, 'Record lube oil pressure', 'NUMBER', {
+      unit: 'bar', minimumValue: 3, maximumValue: 6,
+      linkedMeasurementPoint: { id: 'mp-1', name: 'Lube oil pressure', measurementType: 'PRESSURE', unit: 'bar', normalMinimum: 3.5, normalMaximum: 5.5 },
+      referenceAttachments: [{ id: 'ref-1', fileName: 'Gauge location.png', contentType: 'image/png' }, { id: 'ref-2', fileName: 'Service manual.pdf', contentType: 'application/pdf' }],
+    }),
     task(3, 'Replace lube oil filter', 'CHECKBOX'),
     task(4, 'Oil condition', 'SELECT', { responseOptions: 'Clean, Dark, Contaminated' }),
     task(5, 'Record running hours', 'NUMBER', { unit: 'h', linkedMeter: { id: 'mock-meter-1', name: 'Running hours', unit: 'h' } }),
@@ -119,6 +123,21 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
         quantityOnHand: index % 7 === 0 ? 0 : index % 4 === 0 ? Math.max(1, part.reorderPoint - 1) : part.reorderQuantity + index,
         quantityReserved: 0, odooSnapshotAt: new Date().toISOString(), source: 'ODOO' as const,
       }))
+    }
+    if ((m = url.match(/^\/attachments\/([^/]+)\/content$/))) {
+      // 1x1 PNG, or a tiny PDF, so thumbnails, previews and downloads can be tried without a server
+      if (m[1].startsWith('ref-2')) return new Blob(['%PDF-1.4\n%mock\n'], { type: 'application/pdf' })
+      const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0))
+      return new Blob([png], { type: 'image/png' })
+    }
+    if (url === '/dashboard/monitoring') {
+      const page = Number(params.page ?? 1)
+      const pageSize = Number(params.pageSize ?? 25)
+      const all = assets.filter(a => !params.siteId || a.siteId === params.siteId).flatMap((a, i) => [
+        { id: `${a.id}:p1`, assetId: a.id, assetName: a.name, assetCode: a.assetCode, siteId: a.siteId, conditionPointKey: `measurement-point:${a.id}-1`, measurement: 'Bearing temperature', unit: '°C', status: 'UNKNOWN', freshness: 'STALE', lastKnownState: 'HEALTHY', reason: 'Latest reading is older than 90 days.', latestValue: 61 + i, previousValue: 60, completedAt: ago(120 + i) },
+        { id: `${a.id}:p2`, assetId: a.id, assetName: a.name, assetCode: a.assetCode, siteId: a.siteId, conditionPointKey: `measurement-point:${a.id}-2`, measurement: 'Vibration', unit: 'unspecified', status: 'UNKNOWN', freshness: i % 3 === 0 ? 'MISSING' : 'STALE', lastKnownState: 'UNKNOWN', reason: 'No numeric asset measurement reading is available.', latestValue: null, previousValue: null, completedAt: i % 3 === 0 ? null : ago(200) },
+      ])
+      return { summary: { criticalAssets: 0, warningAssets: 0, needsFreshReadingAssets: new Set(all.map(x => x.assetId)).size, monitoredAssets: 12, unconfiguredAssets: 3 }, items: all.slice((page - 1) * pageSize, page * pageSize), totalCount: all.length, page, pageSize }
     }
     if (url === '/work-orders/query') {
       const page = Number(params.page ?? 1)

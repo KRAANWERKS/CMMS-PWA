@@ -11,6 +11,7 @@ import { DetailSkeleton } from '../components/Skeletons'
 import { db } from '../db/schema'
 import { submitChange, withPendingChanges, applyEntry, type NewEntry } from '../db/sync'
 import { TaskPhotos } from '../components/TaskPhotos'
+import { TaskReferences } from '../components/TaskReferences'
 import { WorkOrderHistory } from '../components/WorkOrderHistory'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 
@@ -162,6 +163,12 @@ export function WorkOrderExecute() {
             (task.minimumValue != null && numeric < task.minimumValue) ||
             (task.maximumValue != null && numeric > task.maximumValue)
           ) ? `Must be between ${task.minimumValue ?? 'no minimum'} and ${task.maximumValue ?? 'no maximum'}` : undefined
+          // Measurement points may carry a normal range: advisory only, the technician can still record the value
+          const point = task.linkedMeasurementPoint
+          const normalText = point && (point.normalMinimum != null || point.normalMaximum != null)
+            ? `normal ${point.normalMinimum ?? 'any'} to ${point.normalMaximum ?? 'any'} ${point.unit}` : undefined
+          const outsideNormal = !!point && task.responseType === 'NUMBER' && response.trim() !== '' && Number.isFinite(numeric) && (
+            (point.normalMinimum != null && numeric < point.normalMinimum) || (point.normalMaximum != null && numeric > point.normalMaximum))
 
           if (done) {
             return (
@@ -173,6 +180,10 @@ export function WorkOrderExecute() {
                   </Group>
                   <Button size="md" variant="light" color="gray" mih={44} style={{ flexShrink: 0 }} disabled={wo.status !== 'IN_PROGRESS' || taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: false, responseValue: response })}>Edit</Button>
                 </Group>
+                {task.responseType !== 'CHECKBOX' && task.responseValue && task.responseValue !== 'true' && (
+                  <Text size="xs" c="dimmed" mt={4} ml={36} lineClamp={2}>Recorded: {task.responseValue}{task.responseType === 'NUMBER' && (task.unit ?? task.linkedMeasurementPoint?.unit) ? ` ${task.unit ?? task.linkedMeasurementPoint?.unit}` : ''}</Text>
+                )}
+                {photoCount > 0 && <Box mt={6} ml={36}><TaskPhotos workOrderId={wo.id} taskId={task.id} attachments={task.attachments ?? []} minimum={0} readOnly /></Box>}
               </Paper>
             )
           }
@@ -191,6 +202,8 @@ export function WorkOrderExecute() {
           return (
             <Paper id={`instruction-${task.id}`} key={task.id} withBorder radius={6} p={12}>
               <Group gap={10} wrap="nowrap" mb={10}><Box w={26} h={26} style={{ borderRadius: 999, border: '1.5px solid var(--mantine-color-text)', flexShrink: 0 }} /><Text size="sm" fw={650}>{task.description}</Text></Group>
+              {point && <Text size="xs" c="dimmed" mb={8}>{point.measurementType.charAt(0) + point.measurementType.slice(1).toLowerCase().replace(/_/g, ' ')} · {point.name}{normalText ? ` · ${normalText}` : ''}</Text>}
+              <TaskReferences items={task.referenceAttachments ?? []} />
 
               {task.responseType === 'CHECKBOX' ? (
                 <Stack gap={8}>
@@ -213,6 +226,7 @@ export function WorkOrderExecute() {
                     onChange={value => setTaskResponses(current => ({ ...current, [task.id]: String(value ?? '') }))}
                     rightSection={task.unit ? <Text size="xs" c="dimmed">{task.unit}</Text> : undefined}
                   />
+                  {outsideNormal && !rangeError && <Alert color="orange" variant="light" py={6}>Outside the {normalText}. You can still save it if the reading is correct.</Alert>}
                   {task.linkedMeter && <Alert color="blue" variant="light" py={6}>Saving this instruction also updates {task.linkedMeter.name}.</Alert>}
                   {(task.minimumValue != null || task.maximumValue != null) && <Text size="xs" c="dimmed">Allowed: {task.minimumValue ?? 'no minimum'} to {task.maximumValue ?? 'no maximum'}</Text>}
                   <Button color="yellow" c="#111827" disabled={wo.status !== 'IN_PROGRESS' || photosMissing || taskMutation.isPending || !response.trim() || !!rangeError} loading={taskMutation.isPending} onClick={() => taskMutation.mutate({ taskId: task.id, completed: true, responseValue: response })}>Save & continue</Button>

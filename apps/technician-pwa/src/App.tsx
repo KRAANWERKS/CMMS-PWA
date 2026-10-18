@@ -8,6 +8,7 @@ import { MobileLayout } from './layouts/MobileLayout'
 const AssignedWorkOrders = lazy(() => import('./pages/AssignedWorkOrders'))
 const WorkOrderExecute = lazy(() => import('./pages/WorkOrderExecute'))
 const NewWorkRequest = lazy(() => import('./pages/NewWorkRequest'))
+const ReadingsDue = lazy(() => import('./pages/ReadingsDue'))
 const AssetsList = lazy(() => import('./pages/AssetsList'))
 const PartsPage = lazy(() => import('./parts/PartsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -44,6 +45,7 @@ function App() {
         <Route element={<TechnicianRoute />}>
           <Route path="/work-orders" element={<AssignedWorkOrders />} />
           <Route path="/work-orders/:id" element={<WorkOrderExecute />} />
+          <Route path="/readings" element={<ReadingsDue />} />
           <Route path="/work-requests/new" element={<NewWorkRequest />} />
           <Route path="/assets" element={<AssetsList />} />
           <Route path="/parts" element={<PartsPage />} />

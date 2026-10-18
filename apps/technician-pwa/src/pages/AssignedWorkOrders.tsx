@@ -82,7 +82,10 @@ export function AssignedWorkOrders() {
         </div>
         <Stack gap={6} align="flex-end">
           {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}
-          <Button component={Link} to="/work-requests/new" size="xs" variant="light">Report issue</Button>
+          <Group gap={6}>
+            <Button component={Link} to="/readings" size="xs" variant="light">Readings due</Button>
+            <Button component={Link} to="/work-requests/new" size="xs" variant="light">Report issue</Button>
+          </Group>
         </Stack>
       </Group>
 
