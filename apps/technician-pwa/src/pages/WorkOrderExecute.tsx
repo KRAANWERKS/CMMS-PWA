@@ -9,7 +9,7 @@ import { CMMSErrorState } from '@cmms/ui'
 import { PriorityBadge, StatusBadge } from '../components/Badges'
 import { DetailSkeleton } from '../components/Skeletons'
 import { db } from '../db/schema'
-import { submitChange, withPendingChanges, applyEntry, type NewEntry } from '../db/sync'
+import { submitChange, fetchWorkOrder, applyEntry, type NewEntry } from '../db/sync'
 import { TaskPhotos } from '../components/TaskPhotos'
 import { TaskReferences } from '../components/TaskReferences'
 import { WorkOrderHistory } from '../components/WorkOrderHistory'
@@ -49,7 +49,7 @@ export function WorkOrderExecute() {
   }, [])
 
   // Server data plus anything queued on this device that the server has not received yet
-  const query = useQuery({ queryKey: ['work-order', id], queryFn: async () => withPendingChanges(await workOrderService.getWorkOrderById(id!)), enabled: !!id })
+  const query = useQuery({ queryKey: ['work-order', id], queryFn: () => fetchWorkOrder(id!), enabled: !!id })
   const pmOrigin = useQuery({
     queryKey: ['work-order-pm-origin', id],
     queryFn: () => workOrderService.getPmOrigin(id!),

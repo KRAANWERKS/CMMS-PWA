@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Badge, Button, Chip, Group, Pagination, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { IconCircleCheck, IconClipboardList, IconSearch, IconX } from '@tabler/icons-react'
@@ -9,12 +9,12 @@ import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 import { ListSkeleton } from '../components/Skeletons'
 import { WorkOrderCard } from '../components/WorkOrderCard'
+import { usePrefetchOpenWorkOrders } from '../hooks/usePrefetchOpenWorkOrders'
 
 const PAGE_SIZE = 25
 const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 
 export function AssignedWorkOrders() {
-  const queryClient = useQueryClient()
   const { currentSiteId, currentSite } = useTechnicianSite()
   const [searchParams, setSearchParams] = useSearchParams()
   const assetId = searchParams.get('asset') ?? undefined
@@ -46,14 +46,8 @@ export function AssignedWorkOrders() {
     staleTime: 2 * 60 * 1000,
   })
 
-  // Save each listed work order's detail so it can be opened offline
-  const listedIds = (openQuery.data?.items ?? []).map(wo => wo.id).join(',')
-  useEffect(() => {
-    if (!listedIds || !navigator.onLine) return
-    for (const id of listedIds.split(',')) {
-      void queryClient.prefetchQuery({ queryKey: ['work-order', id], queryFn: () => workOrderService.getWorkOrderById(id) })
-    }
-  }, [listedIds, queryClient])
+  // Save every open work order's detail (not only this page) so each can be opened offline
+  usePrefetchOpenWorkOrders(currentSiteId)
 
   const clearFilters = () => {
     setSearch(''); setPriority(null); setOverdueOnly(false)

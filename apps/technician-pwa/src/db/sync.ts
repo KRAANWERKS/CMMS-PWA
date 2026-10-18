@@ -120,6 +120,11 @@ export function applyEntry(wo: WorkOrderDto, entry: OutboxEntry): WorkOrderDto {
   }
 }
 
+/** The server copy of a work order with this device's unsent changes laid over it. */
+export async function fetchWorkOrder(id: string) {
+  return withPendingChanges(await workOrderService.getWorkOrderById(id))
+}
+
 export async function withPendingChanges(wo: WorkOrderDto) {
   const pending = await db.outbox.where('workOrderId').equals(wo.id).filter(entry => entry.status === 'PENDING').sortBy('id')
   return pending.reduce(applyEntry, wo)
