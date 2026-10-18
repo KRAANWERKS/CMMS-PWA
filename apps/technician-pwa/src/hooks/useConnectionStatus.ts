@@ -4,6 +4,9 @@ import { useIsFetching, useIsMutating, useQueryClient } from '@tanstack/react-qu
 
 import { db } from '../db/schema'
 
+/** Failed send attempts after which a queued change is shown as not sending */
+const STUCK_AFTER = 3
+
 export type ConnectionState = 'offline' | 'unreachable' | 'syncing' | 'online'
 
 function subscribeOnline(callback: () => void) {
@@ -43,7 +46,9 @@ export function useConnectionStatus() {
   // Counting by index avoids reading queued photo blobs into memory on every change
   const pendingCount = useLiveQuery(() => db.outbox.where('status').equals('PENDING').count(), [], 0)
   const failed = useLiveQuery(() => db.outbox.where('status').equals('FAILED').toArray(), [], [])
+  // Still queued but failing again and again (e.g. a server error on one record): tell the technician
+  const stuck = useLiveQuery(() => db.outbox.where('attempts').aboveOrEqual(STUCK_AFTER).and(entry => entry.status === 'PENDING').toArray(), [], [])
 
   const state: ConnectionState = !isOnline ? 'offline' : failedCount > 0 && fetching === 0 ? 'unreachable' : fetching > 0 ? 'syncing' : 'online'
-  return { state, isOnline, lastSyncedAt: lastSyncedAt || null, pendingCount, failed }
+  return { state, isOnline, lastSyncedAt: lastSyncedAt || null, pendingCount, failed, stuck }
 }

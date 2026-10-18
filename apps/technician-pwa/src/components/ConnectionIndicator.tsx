@@ -1,4 +1,5 @@
 import { Box, Button, Group, Popover, Stack, Text, UnstyledButton } from '@mantine/core'
+import { useQueryClient } from '@tanstack/react-query'
 import { db } from '../db/schema'
 import { useConnectionStatus, type ConnectionState } from '../hooks/useConnectionStatus'
 
@@ -17,11 +18,20 @@ export function formatSynced(timestamp: number | null) {
 }
 
 export function ConnectionIndicator() {
-  const { state, lastSyncedAt, pendingCount, failed } = useConnectionStatus()
+  const { state, lastSyncedAt, pendingCount, failed, stuck } = useConnectionStatus()
+  const queryClient = useQueryClient()
+  // Dropping a change must also drop its optimistic result from the screen. Work orders are re-fetched with the
+  // remaining queued changes laid back over them; asset lists are only refreshed when nothing else is waiting,
+  // because a queued meter reading would otherwise disappear from the list until it syncs.
+  const removeEntry = async (id: number) => {
+    await db.outbox.delete(id)
+    void queryClient.invalidateQueries({ queryKey: ['work-order'] })
+    if (await db.outbox.where('status').equals('PENDING').count() === 0) void queryClient.invalidateQueries({ queryKey: ['assets'] })
+  }
   const { label, color, detail } = display[state]
   // A rejected change is thrown away by the server, so make it visible without opening the popover
-  const shownLabel = failed.length > 0 ? `${label} · ${failed.length} rejected` : pendingCount > 0 ? `${label} · ${pendingCount} to sync` : label
-  const dotColor = failed.length > 0 ? 'var(--mantine-color-red-6)' : color
+  const shownLabel = failed.length > 0 ? `${label} · ${failed.length} rejected` : stuck.length > 0 ? `${label} · ${stuck.length} not sending` : pendingCount > 0 ? `${label} · ${pendingCount} to sync` : label
+  const dotColor = failed.length > 0 ? 'var(--mantine-color-red-6)' : stuck.length > 0 ? 'var(--mantine-color-orange-6)' : color
 
   return (
     <Popover width={280} position="bottom-end" withArrow shadow="md">
@@ -38,13 +48,24 @@ export function ConnectionIndicator() {
         <Text size="xs" c="dimmed" mt={2}>{detail}</Text>
         <Text size="xs" mt="xs">{formatSynced(lastSyncedAt)}</Text>
         {pendingCount > 0 && <Text size="xs" mt={4} fw={600}>{pendingCount} change{pendingCount === 1 ? '' : 's'} saved on this device, waiting to sync.</Text>}
+        {stuck.length > 0 && (
+          <Stack gap={6} mt="sm">
+            <Text size="xs" fw={700} c="orange">{stuck.length} change{stuck.length === 1 ? ' keeps' : 's keep'} failing to send. They stay saved here and are retried.</Text>
+            {stuck.map(entry => (
+              <Group key={entry.id} justify="space-between" wrap="nowrap" align="flex-start">
+                <Text size="xs" c="dimmed">{entry.action.toLowerCase()}: {entry.lastAttemptError}</Text>
+                <Button size="sm" variant="subtle" color="gray" onClick={() => removeEntry(entry.id!)}>Discard</Button>
+              </Group>
+            ))}
+          </Stack>
+        )}
         {failed.length > 0 && (
           <Stack gap={6} mt="sm">
             <Text size="xs" fw={700} c="red">{failed.length} change{failed.length === 1 ? ' was' : 's were'} rejected by the server</Text>
             {failed.map(entry => (
               <Group key={entry.id} justify="space-between" wrap="nowrap" align="flex-start">
                 <Text size="xs" c="dimmed">{entry.action.toLowerCase()}: {entry.error}</Text>
-                <Button size="sm" variant="subtle" color="gray" onClick={() => db.outbox.delete(entry.id!)}>Dismiss</Button>
+                <Button size="sm" variant="subtle" color="gray" onClick={() => removeEntry(entry.id!)}>Dismiss</Button>
               </Group>
             ))}
           </Stack>

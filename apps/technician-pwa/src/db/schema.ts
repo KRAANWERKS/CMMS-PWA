@@ -13,6 +13,9 @@ export interface OutboxEntry {
   /** PENDING = waiting to send (retried); FAILED = the server rejected it. */
   status: 'PENDING' | 'FAILED'
   error?: string
+  /** Failed sends that will be retried: a lost reply may still have reached the server, so retries check first. */
+  attempts?: number
+  lastAttemptError?: string
 }
 
 class CmmsDexie extends Dexie {
@@ -31,6 +34,11 @@ class CmmsDexie extends Dexie {
       spareParts: null,
       outbox: '++id, action, status, workOrderId, createdAt',
     }).upgrade(tx => tx.table('outbox').clear())
+    // attempts is indexed so the connection indicator re-renders when an entry starts failing
+    // (Dexie only re-runs a live query when an indexed value changes). Existing rows are kept.
+    this.version(3).stores({
+      outbox: '++id, action, status, workOrderId, createdAt, attempts',
+    })
   }
 }
 

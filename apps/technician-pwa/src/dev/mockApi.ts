@@ -172,12 +172,15 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
   }
 
   if (method === 'post') {
+    // Test hook: every change for this work order id fails with a server error
+    if (url.startsWith('/work-orders/poison/')) throw new HttpError(500, 'Internal server error')
     if (url === '/auth/logout' || url === '/auth/login') return null
     if (url === '/work-requests') return { id: `mock-request-${Date.now()}` }
     if ((m = url.match(/^\/work-orders\/([^/]+)\/tasks\/([^/]+)\/attachments$/))) {
       const task = workOrders.find(w => w.id === m![1])?.tasks.find(x => x.id === m![2])
       if (!task) throw new HttpError(404, 'Task not found')
-      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: 'photo.jpg', contentType: 'image/jpeg' }]
+      const file = body.file as File | undefined
+      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: file?.name ?? 'photo.jpg', contentType: file?.type || 'image/jpeg', fileSize: file?.size, checksumSha256: body.sha as string | undefined }]
       return null
     }
     if ((m = url.match(/^\/assets\/([^/]+)\/meter-readings$/))) {
@@ -216,10 +219,24 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
 export function installMockApi() {
   apiClient.defaults.adapter = async (config: MockRequestConfig) => {
     await new Promise(resolve => setTimeout(resolve, 150))
-    const body = typeof config.data === 'string' && config.data ? JSON.parse(config.data) : (config.data ?? {})
+    // Test hook: every request is recorded so a test can count duplicates
+    const calls = ((globalThis as { __mockCalls?: string[] }).__mockCalls ??= [])
+    calls.push(`${(config.method ?? 'get').toUpperCase()} ${config.url}`)
+    let body = typeof config.data === 'string' && config.data ? JSON.parse(config.data) : (config.data ?? {})
+    if (config.data instanceof FormData) {
+      const file = config.data.get('file') as File
+      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
+      body = { file, sha: [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('') }
+    }
     const base = { status: 200, statusText: 'OK', headers: {}, config: config as never }
     try {
       const data = handle((config.method ?? 'get').toLowerCase(), config.url ?? '', config.params ?? {}, body)
+      // Test hook: apply the change, then drop the reply, like a connection lost mid-response
+      const lose = (globalThis as { __mockLoseReply?: string[] }).__mockLoseReply
+      if (lose?.length && (config.url ?? '').includes(lose[0])) {
+        lose.shift()
+        throw Object.assign(new Error('Network Error'), { isAxiosError: true, config })
+      }
       return { ...base, data: data === null ? '' : structuredClone(data) }
     } catch (error) {
       if (!(error instanceof HttpError)) throw error
