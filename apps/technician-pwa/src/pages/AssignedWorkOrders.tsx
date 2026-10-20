@@ -9,6 +9,7 @@ import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 import { ListSkeleton } from '../components/Skeletons'
 import { WorkOrderCard } from '../components/WorkOrderCard'
+import { SiteWeather } from '../components/SiteWeather'
 import { usePrefetchOpenWorkOrders } from '../hooks/usePrefetchOpenWorkOrders'
 
 const PAGE_SIZE = 25
@@ -73,6 +74,7 @@ export function AssignedWorkOrders() {
         <div>
           <Text fw={750} size="xl">My Work</Text>
           <Text size="sm" c="dimmed">{currentSite?.name ?? 'Current site'}</Text>
+          {currentSiteId && <SiteWeather siteId={currentSiteId} />}
         </div>
         <Stack gap={6} align="flex-end">
           {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}

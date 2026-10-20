@@ -130,6 +130,12 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
       const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0))
       return new Blob([png], { type: 'image/png' })
     }
+    if (url === '/sites/weather') {
+      const ids = ([] as unknown[]).concat(params.siteIds ?? []).map(String)
+      return ids.map(siteId => siteId === 'site-vessel'
+        ? { siteId, latitude: 1.1, longitude: 104.0, status: 'available', reading: { temperatureC: 29.4, windKph: 18.2, humidity: 78, condition: 'Partly cloudy', iconUrl: 'https://cdn.example/icon.png', updatedAt: new Date(Date.now() - 20 * 60_000).toISOString(), fetchedAt: new Date().toISOString() } }
+        : { siteId, latitude: null, longitude: null, status: 'no_coordinates', reading: null })
+    }
     if (url === '/dashboard/monitoring') {
       const page = Number(params.page ?? 1)
       const pageSize = Number(params.pageSize ?? 25)
