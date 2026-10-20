@@ -70,35 +70,36 @@ export function AssignedWorkOrders() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start">
-        <div>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <div style={{ minWidth: 0 }}>
           <Text fw={750} size="xl">My Work</Text>
           <Text size="sm" c="dimmed">{currentSite?.name ?? 'Current site'}</Text>
-          {currentSiteId && <SiteWeather siteId={currentSiteId} />}
         </div>
-        <Stack gap={6} align="flex-end">
-          {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}
-          <Group gap={6}>
-            <Button component={Link} to="/readings" size="xs" variant="light">Readings due</Button>
-            <Button component={Link} to="/work-requests/new" size="xs" variant="light">Report issue</Button>
-          </Group>
-        </Stack>
+        {!filtered && <Badge variant="light" color="gray" style={{ flexShrink: 0 }}>{openTotal + completedTotal} total</Badge>}
+      </Group>
+      {/* Full width on its own row, so the badge above never squeezes it */}
+      {currentSiteId && <SiteWeather siteId={currentSiteId} />}
+
+      {/* Full-width, thumb-sized actions; the default style keeps the text readable (amber on pale amber was not) */}
+      <Group grow gap="xs">
+        <Button component={Link} to="/readings" variant="default" size="sm" h="auto" mih={44} px={6} styles={{ inner: { minHeight: 44 }, label: { whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', overflow: 'visible' } }}>Readings due</Button>
+        <Button component={Link} to="/work-requests/new" variant="default" size="sm" h="auto" mih={44} px={6} styles={{ inner: { minHeight: 44 }, label: { whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', overflow: 'visible' } }}>Report issue</Button>
       </Group>
 
       {!filtered && (
         <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xs">
-          <Paper p="md" radius={6} withBorder>
-            <Group gap="md" wrap="nowrap">
-              <IconClipboardList size="1.625rem" />
+          <Paper p="sm" radius={6} withBorder>
+            <Group gap="sm" wrap="nowrap">
+              <IconClipboardList size="1.625rem" className="narrow-hide" style={{ flexShrink: 0 }} />
               <div>
                 <Text size="xs" c="dimmed" mb={2}>Open</Text>
                 <Text size="xl" fw={750} lh={1.1}>{openTotal}</Text>
               </div>
             </Group>
           </Paper>
-          <Paper p="md" radius={6} withBorder>
-            <Group gap="md" wrap="nowrap">
-              <IconCircleCheck size="1.625rem" />
+          <Paper p="sm" radius={6} withBorder>
+            <Group gap="sm" wrap="nowrap">
+              <IconCircleCheck size="1.625rem" className="narrow-hide" style={{ flexShrink: 0 }} />
               <div>
                 <Text size="xs" c="dimmed" mb={2}>Completed</Text>
                 <Text size="xl" fw={750} lh={1.1}>{completedTotal}</Text>

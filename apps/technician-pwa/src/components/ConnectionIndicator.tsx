@@ -36,7 +36,7 @@ export function ConnectionIndicator() {
   return (
     <Popover width={280} position="bottom-end" withArrow shadow="md">
       <Popover.Target>
-        <UnstyledButton aria-label={`Connection status: ${shownLabel}`} px={12} py={8} style={{ borderRadius: 999, border: '1px solid var(--mantine-color-default-border)' }}>
+        <UnstyledButton aria-label={`Connection status: ${shownLabel}`} px={12} py={8} style={{ borderRadius: 999, border: '1px solid var(--mantine-color-default-border)', minHeight: 44, minWidth: 44, display: 'grid', placeItems: 'center' }}>
           <Group gap={6} wrap="nowrap">
             <Box w={12} h={12} style={{ borderRadius: 999, background: dotColor, flexShrink: 0 }} />
             <Text size="sm" fw={700} visibleFrom="sm">{shownLabel}</Text>

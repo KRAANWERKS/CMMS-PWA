@@ -1,6 +1,7 @@
 import { Alert, Stack, Text, Paper, Group, Avatar, Button, Badge, SegmentedControl, Select, useMantineColorScheme } from '@mantine/core'
 import { IconLogout, IconWifi, IconWifiOff } from '@tabler/icons-react'
 import { useState, useEffect } from 'react'
+import { useMediaQuery } from '@mantine/hooks'
 import { useQuery } from '@tanstack/react-query'
 import { authService } from '@cmms/api-client'
 import { useSignOut } from '../hooks/useSignOut'
@@ -13,6 +14,8 @@ export function ProfilePage() {
   const { signOut, error: logoutError } = useSignOut()
   const { currentSiteId, currentSite, permittedSites, canSwitchSite, selectSite } = useTechnicianSite()
   const { colorScheme, setColorScheme } = useMantineColorScheme()
+  // Three labels no longer fit side by side on the smallest phones, especially at the larger text sizes
+  const narrow = useMediaQuery('(max-width: 380px)') ?? false
   const [textScale, setScale] = useState<TextScale>(getTextScale)
 
   useEffect(() => {
@@ -60,12 +63,14 @@ export function ProfilePage() {
         <SegmentedControl
           fullWidth
           size="lg"
+          orientation={narrow ? 'vertical' : 'horizontal'}
+          styles={{ label: { padding: '10px 4px' } }}
           value={textScale}
           onChange={value => { setScale(value as TextScale); setTextScale(value as TextScale) }}
           data={[
             { value: 'standard', label: 'Standard' },
             { value: 'large', label: 'Large' },
-            { value: 'xlarge', label: 'Extra large' },
+            { value: 'xlarge', label: 'Largest' },
           ]}
         />
         <Text mt="sm">The quick brown fox: this is how text will look.</Text>
@@ -76,6 +81,8 @@ export function ProfilePage() {
         <SegmentedControl
           fullWidth
           size="lg"
+          orientation={narrow ? 'vertical' : 'horizontal'}
+          styles={{ label: { padding: '10px 4px' } }}
           value={colorScheme}
           onChange={value => setColorScheme(value as 'auto' | 'light' | 'dark')}
           data={[

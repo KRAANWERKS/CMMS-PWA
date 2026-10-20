@@ -27,13 +27,15 @@ const navItems = [
   { path: '/profile', label: 'Profile', icon: IconUser },
 ]
 
-function Brand() {
+// The word is dropped from the header on phones (the logo is enough, and the room helps the site name);
+// the slide-out menu has space for it
+function Brand({ hideWordOnPhone = false }: { hideWordOnPhone?: boolean }) {
   return (
     <Group gap={10} wrap="nowrap">
       <ThemeIcon variant="filled" color="yellow" size={38} radius={8}>
         <IconBox size="1.375rem" stroke={2.2} color="#111827" />
       </ThemeIcon>
-      <Text fw={800} size="lg">CMMS</Text>
+      <Text fw={800} size="lg" className={hideWordOnPhone ? 'phone-hide' : undefined}>CMMS</Text>
     </Group>
   )
 }
@@ -90,8 +92,8 @@ function MobileLayoutContent() {
       <AppShell.Header px={16} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
         <Group h="100%" justify="space-between" wrap="nowrap">
           <Group gap={10} wrap="nowrap">
-            {!isDesktop && <Burger aria-label="Open navigation" opened={menuOpened} onClick={openMenu} size="md" />}
-            <Brand />
+            {!isDesktop && <Burger aria-label="Open navigation" opened={menuOpened} onClick={openMenu} size="md" style={{ minWidth: 44, minHeight: 44 }} />}
+            <Brand hideWordOnPhone />
           </Group>
           <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}>
             <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -99,7 +101,7 @@ function MobileLayoutContent() {
               <Text size="sm" fw={700} truncate maw={150}>{siteLabel}</Text>
             </Group>
             <ConnectionIndicator />
-            <ActionIcon variant="subtle" color="gray" size={44} aria-label="Refresh data" disabled={!isOnline || refreshing} onClick={refresh}>
+            <ActionIcon variant="subtle" color="gray" size={44} className="narrow-hide" aria-label="Refresh data" disabled={!isOnline || refreshing} onClick={refresh}>
               <IconRefresh size="1.375rem" className={refreshing ? 'spin' : undefined} />
             </ActionIcon>
             <Menu position="bottom-end" width={200} withinPortal>
@@ -157,10 +159,10 @@ function MobileLayoutContent() {
           {navItems.map(item => {
             const active = location.pathname.startsWith(item.path)
             return (
-              <UnstyledButton key={item.path} aria-label={item.label} aria-current={active ? 'page' : undefined} onClick={() => navigate(item.path)} style={{ minHeight: 56, height: '100%' }}>
+              <UnstyledButton key={item.path} aria-label={item.label} aria-current={active ? 'page' : undefined} onClick={() => navigate(item.path)} style={{ minHeight: 56, height: '100%', minWidth: 0 }}>
                 <Stack gap={2} align="center" justify="center">
                   <item.icon size="1.5rem" stroke={active ? 2.1 : 1.7} color={active ? 'var(--mantine-color-text)' : 'var(--mantine-color-dimmed)'} />
-                  <Text size="xs" fw={active ? 800 : 600} c={active ? undefined : 'dimmed'}>{item.label}</Text>
+                  <Text size="xs" fw={active ? 800 : 600} c={active ? undefined : 'dimmed'} style={{ whiteSpace: 'nowrap', fontSize: '0.7rem' }}>{item.label}</Text>
                 </Stack>
               </UnstyledButton>
             )

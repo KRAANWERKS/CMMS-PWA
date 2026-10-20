@@ -319,7 +319,7 @@ export function WorkOrderExecute() {
       </Accordion>
 
       <Box pos="sticky" bottom="calc(var(--app-shell-footer-offset, 0px) + env(safe-area-inset-bottom))" py={10} bg="var(--mantine-color-body)" style={{ zIndex: 2 }}>
-        <Button fullWidth size="lg" color="yellow" c="#111827" disabled={(!startTransition && !currentTask && !canComplete)} loading={statusMutation.isPending} onClick={continueInspection}>
+        <Button fullWidth size="lg" h="auto" mih={54} py={8} styles={{ inner: { minHeight: 54 }, label: { whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center' } }} color="yellow" c="#111827" disabled={(!startTransition && !currentTask && !canComplete)} loading={statusMutation.isPending} onClick={continueInspection}>
           {startTransition ? 'Start inspection' : currentTask ? 'Continue inspection' : canComplete ? 'Review completion' : 'Inspection complete'}
         </Button>
       </Box>

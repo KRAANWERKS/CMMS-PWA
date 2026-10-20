@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Alert, Button, SegmentedControl, Select, Stack, Text, Textarea, TextInput } from '@mantine/core'
+import { Alert, Button, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core'
 import { assetService, authService, getApiError, workOrderService } from '@cmms/api-client'
 import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
@@ -55,7 +55,11 @@ export default function NewWorkRequest() {
       <Textarea label="Details" description="What did you see, and where?" minRows={3} value={description} onChange={event => setDescription(event.currentTarget.value)} maxLength={2000} required />
       <div>
         <Text size="sm" fw={500} mb={4}>Priority</Text>
-        <SegmentedControl fullWidth value={priority} onChange={setPriority} data={PRIORITIES} />
+        <SimpleGrid cols={2} spacing="xs">
+          {PRIORITIES.map(item => (
+            <Button key={item.value} variant={priority === item.value ? 'filled' : 'default'} color={priority === item.value ? 'yellow' : undefined} c={priority === item.value ? '#111827' : undefined} h={44} aria-pressed={priority === item.value} onClick={() => setPriority(item.value)}>{item.label}</Button>
+          ))}
+        </SimpleGrid>
       </div>
       {submit.error && <Alert color="red">{getApiError(submit.error, 'Could not send the request')}</Alert>}
       <Button size="lg" color="yellow" c="#111827" loading={submit.isPending} disabled={!online || !title.trim() || !description.trim() || !user.data || !currentSiteId} onClick={() => submit.mutate()}>Send request</Button>

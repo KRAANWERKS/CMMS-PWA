@@ -46,7 +46,7 @@ export function TaskReferences({ items }: { items: TaskAttachmentDto[] }) {
       <Text size="xs" fw={650} c="dimmed" tt="uppercase">Reference</Text>
       <Group gap={6}>
         {items.map(item => (
-          <Button key={item.id} size="sm" h={44} variant="default" loading={busy === item.id} styles={{ label: { overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '65vw' } }} leftSection={isImage(item) ? <IconPhoto size="1.25rem" /> : <IconFileText size="1.25rem" />} onClick={() => open(item)}>
+          <Button key={item.id} size="sm" h="auto" mih={44} py={6} variant="default" loading={busy === item.id} styles={{ inner: { minHeight: 44 }, label: { whiteSpace: 'normal', textAlign: 'left', wordBreak: 'break-word', overflow: 'visible' } }} leftSection={isImage(item) ? <IconPhoto size="1.25rem" /> : <IconFileText size="1.25rem" />} onClick={() => open(item)}>
             {item.fileName ?? 'Reference'}
           </Button>
         ))}
