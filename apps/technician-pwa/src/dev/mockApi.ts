@@ -49,8 +49,12 @@ function wo(n: number, siteId: string, assetId: string, title: string, status: s
 
 const workOrders: WorkOrderDto[] = [
   wo(1, 'site-vessel', 'a1', 'Main engine 250h service', 'IN_PROGRESS', 'HIGH', 'PREVENTIVE', [
-    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED' }),
-    task(2, 'Record lube oil pressure', 'NUMBER', { unit: 'bar', minimumValue: 3, maximumValue: 6 }),
+    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED', attachments: [{ id: 'att-1', fileName: 'tagout.png', contentType: 'image/png' }] }),
+    task(2, 'Record lube oil pressure', 'NUMBER', {
+      unit: 'bar', minimumValue: 3, maximumValue: 6,
+      linkedMeasurementPoint: { id: 'mp-1', name: 'Lube oil pressure', measurementType: 'PRESSURE', unit: 'bar', normalMinimum: 3.5, normalMaximum: 5.5 },
+      referenceAttachments: [{ id: 'ref-1', fileName: 'Gauge location.png', contentType: 'image/png' }, { id: 'ref-2', fileName: 'Service manual.pdf', contentType: 'application/pdf' }],
+    }),
     task(3, 'Replace lube oil filter', 'CHECKBOX'),
     task(4, 'Oil condition', 'SELECT', { responseOptions: 'Clean, Dark, Contaminated' }),
     task(5, 'Record running hours', 'NUMBER', { unit: 'h', linkedMeter: { id: 'mock-meter-1', name: 'Running hours', unit: 'h' } }),
@@ -71,6 +75,7 @@ const workOrders: WorkOrderDto[] = [
     task(2, 'Replace mechanical seal', 'CHECKBOX'),
   ], { description: 'Waiting on mechanical seal 30 mm (PMP-SEAL-MECH-30).', actualStart: ago(2) }),
   wo(5, 'site-vessel', 'a2', 'Starboard engine air filter check', 'OPEN', 'LOW', 'PREVENTIVE', [
+    task(3, 'Check the engine hour meter', 'CHECKBOX', { linkedAsset: { id: 'a2', assetCode: 'KST-ME-02', name: 'Main Engine Starboard' }, linkedMeter: { id: 'mock-meter-2', name: 'Running hours', unit: 'h' } }),
     task(1, 'Inspect primary air filter element', 'CHECKBOX'),
     task(2, 'Findings', 'TEXT'),
   ]),
@@ -92,8 +97,8 @@ const workOrders: WorkOrderDto[] = [
 
 const transitionsFor = (status: string) =>
   status === 'OPEN' || status === 'ASSIGNED' ? ['IN_PROGRESS']
-    : status === 'IN_PROGRESS' ? ['COMPLETED', 'ON_HOLD']
-    : status === 'ON_HOLD' ? ['IN_PROGRESS'] : []
+    // Technicians can only start or complete; the real server answers 403 for ON_HOLD and other statuses
+    : status === 'IN_PROGRESS' ? ['COMPLETED'] : []
 const syncTransitions = (item: WorkOrderDto) => { item.allowedTransitions = transitionsFor(item.status) }
 workOrders.forEach(syncTransitions)
 
@@ -118,6 +123,27 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
         quantityOnHand: index % 7 === 0 ? 0 : index % 4 === 0 ? Math.max(1, part.reorderPoint - 1) : part.reorderQuantity + index,
         quantityReserved: 0, odooSnapshotAt: new Date().toISOString(), source: 'ODOO' as const,
       }))
+    }
+    if ((m = url.match(/^\/attachments\/([^/]+)\/content$/))) {
+      // 1x1 PNG, or a tiny PDF, so thumbnails, previews and downloads can be tried without a server
+      if (m[1].startsWith('ref-2')) return new Blob(['%PDF-1.4\n%mock\n'], { type: 'application/pdf' })
+      const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0))
+      return new Blob([png], { type: 'image/png' })
+    }
+    if (url === '/sites/weather') {
+      const ids = ([] as unknown[]).concat(params.siteIds ?? []).map(String)
+      return ids.map(siteId => siteId === 'site-vessel'
+        ? { siteId, latitude: 1.1, longitude: 104.0, status: 'available', reading: { temperatureC: 29.4, windKph: 18.2, humidity: 78, condition: 'Partly cloudy', iconUrl: 'https://cdn.example/icon.png', updatedAt: new Date(Date.now() - 20 * 60_000).toISOString(), fetchedAt: new Date().toISOString() } }
+        : { siteId, latitude: null, longitude: null, status: 'no_coordinates', reading: null })
+    }
+    if (url === '/dashboard/monitoring') {
+      const page = Number(params.page ?? 1)
+      const pageSize = Number(params.pageSize ?? 25)
+      const all = assets.filter(a => !params.siteId || a.siteId === params.siteId).flatMap((a, i) => [
+        { id: `${a.id}:p1`, assetId: a.id, assetName: a.name, assetCode: a.assetCode, siteId: a.siteId, conditionPointKey: `measurement-point:${a.id}-1`, measurement: 'Bearing temperature', unit: '°C', status: 'UNKNOWN', freshness: 'STALE', lastKnownState: 'HEALTHY', reason: 'Latest reading is older than 90 days.', latestValue: 61 + i, previousValue: 60, completedAt: ago(120 + i) },
+        { id: `${a.id}:p2`, assetId: a.id, assetName: a.name, assetCode: a.assetCode, siteId: a.siteId, conditionPointKey: `measurement-point:${a.id}-2`, measurement: 'Vibration', unit: 'unspecified', status: 'UNKNOWN', freshness: i % 3 === 0 ? 'MISSING' : 'STALE', lastKnownState: 'UNKNOWN', reason: 'No numeric asset measurement reading is available.', latestValue: null, previousValue: null, completedAt: i % 3 === 0 ? null : ago(200) },
+      ])
+      return { summary: { criticalAssets: 0, warningAssets: 0, needsFreshReadingAssets: new Set(all.map(x => x.assetId)).size, monitoredAssets: 12, unconfiguredAssets: 3 }, items: all.slice((page - 1) * pageSize, page * pageSize), totalCount: all.length, page, pageSize }
     }
     if (url === '/work-orders/query') {
       const page = Number(params.page ?? 1)
@@ -152,12 +178,15 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
   }
 
   if (method === 'post') {
+    // Test hook: every change for this work order id fails with a server error
+    if (url.startsWith('/work-orders/poison/')) throw new HttpError(500, 'Internal server error')
     if (url === '/auth/logout' || url === '/auth/login') return null
     if (url === '/work-requests') return { id: `mock-request-${Date.now()}` }
     if ((m = url.match(/^\/work-orders\/([^/]+)\/tasks\/([^/]+)\/attachments$/))) {
       const task = workOrders.find(w => w.id === m![1])?.tasks.find(x => x.id === m![2])
       if (!task) throw new HttpError(404, 'Task not found')
-      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: 'photo.jpg', contentType: 'image/jpeg' }]
+      const file = body.file as File | undefined
+      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: file?.name ?? 'photo.jpg', contentType: file?.type || 'image/jpeg', fileSize: file?.size, checksumSha256: body.sha as string | undefined }]
       return null
     }
     if ((m = url.match(/^\/assets\/([^/]+)\/meter-readings$/))) {
@@ -196,10 +225,24 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
 export function installMockApi() {
   apiClient.defaults.adapter = async (config: MockRequestConfig) => {
     await new Promise(resolve => setTimeout(resolve, 150))
-    const body = typeof config.data === 'string' && config.data ? JSON.parse(config.data) : (config.data ?? {})
+    // Test hook: every request is recorded so a test can count duplicates
+    const calls = ((globalThis as { __mockCalls?: string[] }).__mockCalls ??= [])
+    calls.push(`${(config.method ?? 'get').toUpperCase()} ${config.url}`)
+    let body = typeof config.data === 'string' && config.data ? JSON.parse(config.data) : (config.data ?? {})
+    if (config.data instanceof FormData) {
+      const file = config.data.get('file') as File
+      const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
+      body = { file, sha: [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('') }
+    }
     const base = { status: 200, statusText: 'OK', headers: {}, config: config as never }
     try {
       const data = handle((config.method ?? 'get').toLowerCase(), config.url ?? '', config.params ?? {}, body)
+      // Test hook: apply the change, then drop the reply, like a connection lost mid-response
+      const lose = (globalThis as { __mockLoseReply?: string[] }).__mockLoseReply
+      if (lose?.length && (config.url ?? '').includes(lose[0])) {
+        lose.shift()
+        throw Object.assign(new Error('Network Error'), { isAxiosError: true, config })
+      }
       return { ...base, data: data === null ? '' : structuredClone(data) }
     } catch (error) {
       if (!(error instanceof HttpError)) throw error

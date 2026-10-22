@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ColorSchemeScript, MantineProvider } from '@mantine/core'
-import { QueryClient, defaultShouldDehydrateQuery } from '@tanstack/react-query'
+import { QueryClient, onlineManager } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { del, get, set } from 'idb-keyval'
@@ -26,8 +26,17 @@ const persister = createAsyncStoragePersister({
 })
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 1000 * 60 * 5, gcTime: CACHE_MAX_AGE } },
+  defaultOptions: {
+    queries: { staleTime: 1000 * 60 * 5, gcTime: CACHE_MAX_AGE },
+    // Writes go through the on-device outbox (db/sync.ts), which saves first and sends when it can.
+    // The default ('online') would pause every mutation while offline, so nothing would be queued.
+    mutations: { networkMode: 'always' },
+  },
 })
+
+// React Query assumes it is online until it sees an 'offline' event. Opening the app with no signal fires
+// no event, so every query would fire, fail and flip to 'error', and the saved copy would be evicted.
+onlineManager.setOnline(navigator.onLine)
 
 if (import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH === 'true') installMockApi()
 
@@ -39,7 +48,8 @@ if ('caches' in window) void caches.delete('api-cache')
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ColorSchemeScript defaultColorScheme="auto" />
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: 'v1', dehydrateOptions: { shouldDehydrateQuery: query => defaultShouldDehydrateQuery(query) && query.queryKey[0] !== 'attachment' } }}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: 'v1', // Keep anything that has data, even if a later refresh failed, so a flaky connection never wipes the saved copy
+    dehydrateOptions: { shouldDehydrateQuery: query => query.state.data !== undefined && query.queryKey[0] !== 'attachment' } }}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Notifications />
         <BrowserRouter basename="/pwa">

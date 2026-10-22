@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Alert, Button, SegmentedControl, Select, Stack, Text, Textarea, TextInput } from '@mantine/core'
+import { Alert, Button, Select, SimpleGrid, Stack, Text, Textarea, TextInput } from '@mantine/core'
 import { assetService, authService, getApiError, workOrderService } from '@cmms/api-client'
 import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
@@ -30,7 +30,7 @@ export default function NewWorkRequest() {
   const submit = useMutation({
     mutationFn: () => workOrderService.createWorkRequest({
       siteId: currentSiteId!, requestedBy: user.data!.id, assetId: assetId ?? undefined,
-      title: title.trim(), description: description.trim() || undefined, priority,
+      title: title.trim(), description: description.trim(), priority,
     }),
   })
 
@@ -52,13 +52,17 @@ export default function NewWorkRequest() {
       {!online && <Alert color="yellow">You're offline. Requests can only be sent while connected.</Alert>}
       <Select label="Asset (optional)" placeholder="Search by code or name" data={assetOptions} value={assetId} onChange={setAssetId} searchable clearable nothingFoundMessage="No assets found" limit={50} />
       <TextInput label="What is wrong?" placeholder="Short summary" value={title} onChange={event => setTitle(event.currentTarget.value)} maxLength={200} required />
-      <Textarea label="Details (optional)" minRows={3} value={description} onChange={event => setDescription(event.currentTarget.value)} maxLength={2000} />
+      <Textarea label="Details" description="What did you see, and where?" minRows={3} value={description} onChange={event => setDescription(event.currentTarget.value)} maxLength={2000} required />
       <div>
         <Text size="sm" fw={500} mb={4}>Priority</Text>
-        <SegmentedControl fullWidth value={priority} onChange={setPriority} data={PRIORITIES} />
+        <SimpleGrid cols={2} spacing="xs">
+          {PRIORITIES.map(item => (
+            <Button key={item.value} variant={priority === item.value ? 'filled' : 'default'} color={priority === item.value ? 'yellow' : undefined} c={priority === item.value ? '#111827' : undefined} h={44} aria-pressed={priority === item.value} onClick={() => setPriority(item.value)}>{item.label}</Button>
+          ))}
+        </SimpleGrid>
       </div>
       {submit.error && <Alert color="red">{getApiError(submit.error, 'Could not send the request')}</Alert>}
-      <Button size="lg" color="yellow" c="#111827" loading={submit.isPending} disabled={!online || !title.trim() || !user.data || !currentSiteId} onClick={() => submit.mutate()}>Send request</Button>
+      <Button size="lg" color="yellow" c="#111827" loading={submit.isPending} disabled={!online || !title.trim() || !description.trim() || !user.data || !currentSiteId} onClick={() => submit.mutate()}>Send request</Button>
     </Stack>
   )
 }

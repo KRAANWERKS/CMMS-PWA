@@ -65,6 +65,24 @@ export interface TaskAttachmentDto {
   fileName?: string | null
   contentType?: string | null
   fileSize?: number | null
+  checksumSha256?: string | null
+  contentUrl?: string
+}
+
+// A meter or measurement reading recorded against a work order
+export interface MeasurementEvidenceDto {
+  id: string
+  workOrderTaskId?: string | null
+  kind: string
+  assetId: string
+  targetId: string
+  value: number
+  unit?: string | null
+  recordedAt: string
+  recordedBy?: string | null
+  source?: string | null
+  note?: string | null
+  supersedesReadingId?: string | null
 }
 
 export interface WorkOrderHistoryEntryDto {
@@ -81,7 +99,7 @@ export interface CreateWorkRequest {
   requestedBy: string
   assetId?: string
   title: string
-  description?: string
+  description: string
   priority: string
   dueAt?: string
 }
@@ -109,11 +127,12 @@ export interface WorkOrderDto {
   closedByUserId?: string | null
   closureReason?: string | null
   assignees: { userId: string; displayName: string }[]
-  tasks: { id: string; description: string; status: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'INFORMATION'; unit?: string | null; minimumValue?: number | null; maximumValue?: number | null; responseValue?: string | null; sourceInstructionId?: number | null; parentSourceInstructionId?: number | null; sourceInstructionType?: number | null; responseOptions?: string | null; linkedAsset?: { id: string; assetCode: string; name: string } | null; linkedMeter?: { id: string; name: string; unit: string } | null; minimumPhotoCount?: number; attachments?: TaskAttachmentDto[]; referenceAttachments?: TaskAttachmentDto[]; instructionReferenceKey?: string | null; linkedMeasurementPoint?: { id: string; name: string; measurementType: string; unit: string; normalMinimum?: number | null; normalMaximum?: number | null } | null }[]
+  tasks: { id: string; description: string; status: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'INFORMATION'; unit?: string | null; minimumValue?: number | null; maximumValue?: number | null; responseValue?: string | null; sourceInstructionId?: number | null; parentSourceInstructionId?: number | null; sourceInstructionType?: number | null; responseOptions?: string | null; linkedAsset?: { id: string; assetCode: string; name: string } | null; linkedMeter?: { id: string; name: string; unit: string } | null; minimumPhotoCount?: number; parentInstructionReferenceKey?: string | null; measurementRecords?: MeasurementEvidenceDto[]; attachments?: TaskAttachmentDto[]; referenceAttachments?: TaskAttachmentDto[]; instructionReferenceKey?: string | null; linkedMeasurementPoint?: { id: string; name: string; measurementType: string; unit: string; normalMinimum?: number | null; normalMaximum?: number | null } | null }[]
   materials: { id: string; externalKey: string; requestType: string; state: string; sourceUpdatedAt: string }[]
   labor: { id: string; hours: number; workedAt: string; notes?: string }[]
   comments: { id: string; comment: string; createdAt: string }[]
   usage: { sparePartId?: string; partNumber?: string; quantity: number }[]
+  measurementEvidence?: MeasurementEvidenceDto[]
 }
 
 export interface CreateWorkOrderRequest { siteId: string; assetId: string; title: string; description?: string; priority: string; scheduledEnd?: string; assigneeIds?: string[]; instructions?: InstructionDefinition[]; saveAsTemplateName?: string }

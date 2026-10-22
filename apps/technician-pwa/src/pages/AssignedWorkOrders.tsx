@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Badge, Button, Chip, Group, Pagination, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
 import { useDebouncedValue } from '@mantine/hooks'
 import { IconCircleCheck, IconClipboardList, IconSearch, IconX } from '@tabler/icons-react'
@@ -9,12 +9,13 @@ import { CMMSErrorState } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 import { ListSkeleton } from '../components/Skeletons'
 import { WorkOrderCard } from '../components/WorkOrderCard'
+import { SiteWeather } from '../components/SiteWeather'
+import { usePrefetchOpenWorkOrders } from '../hooks/usePrefetchOpenWorkOrders'
 
 const PAGE_SIZE = 25
 const PRIORITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 
 export function AssignedWorkOrders() {
-  const queryClient = useQueryClient()
   const { currentSiteId, currentSite } = useTechnicianSite()
   const [searchParams, setSearchParams] = useSearchParams()
   const assetId = searchParams.get('asset') ?? undefined
@@ -46,14 +47,8 @@ export function AssignedWorkOrders() {
     staleTime: 2 * 60 * 1000,
   })
 
-  // Save each listed work order's detail so it can be opened offline
-  const listedIds = (openQuery.data?.items ?? []).map(wo => wo.id).join(',')
-  useEffect(() => {
-    if (!listedIds || !navigator.onLine) return
-    for (const id of listedIds.split(',')) {
-      void queryClient.prefetchQuery({ queryKey: ['work-order', id], queryFn: () => workOrderService.getWorkOrderById(id) })
-    }
-  }, [listedIds, queryClient])
+  // Save every open work order's detail (not only this page) so each can be opened offline
+  usePrefetchOpenWorkOrders(currentSiteId)
 
   const clearFilters = () => {
     setSearch(''); setPriority(null); setOverdueOnly(false)
@@ -75,31 +70,36 @@ export function AssignedWorkOrders() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start">
-        <div>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <div style={{ minWidth: 0 }}>
           <Text fw={750} size="xl">My Work</Text>
           <Text size="sm" c="dimmed">{currentSite?.name ?? 'Current site'}</Text>
         </div>
-        <Stack gap={6} align="flex-end">
-          {!filtered && <Badge variant="light" color="gray">{openTotal + completedTotal} total</Badge>}
-          <Button component={Link} to="/work-requests/new" size="xs" variant="light">Report issue</Button>
-        </Stack>
+        {!filtered && <Badge variant="light" color="gray" style={{ flexShrink: 0 }}>{openTotal + completedTotal} total</Badge>}
+      </Group>
+      {/* Full width on its own row, so the badge above never squeezes it */}
+      {currentSiteId && <SiteWeather siteId={currentSiteId} />}
+
+      {/* Full-width, thumb-sized actions; the default style keeps the text readable (amber on pale amber was not) */}
+      <Group grow gap="xs">
+        <Button component={Link} to="/readings" variant="default" size="sm" h="auto" mih={44} px={6} styles={{ inner: { minHeight: 44 }, label: { whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', overflow: 'visible' } }}>Readings due</Button>
+        <Button component={Link} to="/work-requests/new" variant="default" size="sm" h="auto" mih={44} px={6} styles={{ inner: { minHeight: 44 }, label: { whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', overflow: 'visible' } }}>Report issue</Button>
       </Group>
 
       {!filtered && (
         <SimpleGrid cols={{ base: 2, md: 4 }} spacing="xs">
-          <Paper p="md" radius={6} withBorder>
-            <Group gap="md" wrap="nowrap">
-              <IconClipboardList size="1.625rem" />
+          <Paper p="sm" radius={6} withBorder>
+            <Group gap="sm" wrap="nowrap">
+              <IconClipboardList size="1.625rem" className="narrow-hide" style={{ flexShrink: 0 }} />
               <div>
                 <Text size="xs" c="dimmed" mb={2}>Open</Text>
                 <Text size="xl" fw={750} lh={1.1}>{openTotal}</Text>
               </div>
             </Group>
           </Paper>
-          <Paper p="md" radius={6} withBorder>
-            <Group gap="md" wrap="nowrap">
-              <IconCircleCheck size="1.625rem" />
+          <Paper p="sm" radius={6} withBorder>
+            <Group gap="sm" wrap="nowrap">
+              <IconCircleCheck size="1.625rem" className="narrow-hide" style={{ flexShrink: 0 }} />
               <div>
                 <Text size="xs" c="dimmed" mb={2}>Completed</Text>
                 <Text size="xl" fw={750} lh={1.1}>{completedTotal}</Text>

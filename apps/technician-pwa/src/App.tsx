@@ -1,13 +1,14 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Center, Loader } from '@mantine/core'
-import { useQuery } from '@tanstack/react-query'
+import { useIsRestoring, useQuery } from '@tanstack/react-query'
 import { authService } from '@cmms/api-client'
 import { MobileLayout } from './layouts/MobileLayout'
 
 const AssignedWorkOrders = lazy(() => import('./pages/AssignedWorkOrders'))
 const WorkOrderExecute = lazy(() => import('./pages/WorkOrderExecute'))
 const NewWorkRequest = lazy(() => import('./pages/NewWorkRequest'))
+const ReadingsDue = lazy(() => import('./pages/ReadingsDue'))
 const AssetsList = lazy(() => import('./pages/AssetsList'))
 const PartsPage = lazy(() => import('./parts/PartsPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -24,8 +25,11 @@ const BYPASS_AUTH = import.meta.env.DEV && import.meta.env.VITE_BYPASS_AUTH === 
 
 function TechnicianRoute() {
   if (BYPASS_AUTH) return <MobileLayout />
+  // The saved session is restored from IndexedDB asynchronously. Until then the user query has no data
+  // and is not loading, which would look like "signed out" and send everyone to the login page.
+  const restoring = useIsRestoring()
   const { data: user, isLoading, error } = useQuery({ queryKey: ['current-user'], queryFn: authService.me, retry: false, staleTime: 60_000 })
-  if (isLoading) return <Loading />
+  if (restoring || isLoading) return <Loading />
   // Keep the saved session visible offline; only a real 401 (or no saved user) sends you to login
   const unauthorized = (error as { response?: { status?: number } } | null)?.response?.status === 401
   if (!user || unauthorized) return <Navigate to="/login" replace />
@@ -41,6 +45,7 @@ function App() {
         <Route element={<TechnicianRoute />}>
           <Route path="/work-orders" element={<AssignedWorkOrders />} />
           <Route path="/work-orders/:id" element={<WorkOrderExecute />} />
+          <Route path="/readings" element={<ReadingsDue />} />
           <Route path="/work-requests/new" element={<NewWorkRequest />} />
           <Route path="/assets" element={<AssetsList />} />
           <Route path="/parts" element={<PartsPage />} />

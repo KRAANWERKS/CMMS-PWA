@@ -14,6 +14,7 @@ export type {
   WorkOrderPmOriginDto,
   WorkOrderHistoryEntryDto,
   TaskAttachmentDto,
+  MeasurementEvidenceDto,
   CreateWorkRequest,
   GetWorkOrdersParams,
   GetWorkOrdersResponse,
@@ -36,6 +37,12 @@ export type {
   InventoryBalanceDto,
 } from './spare-parts'
 export { sparePartService } from './spare-parts'
+
+export type { MonitoringItemDto, MonitoringSummaryDto, MonitoringPageDto } from './monitoring'
+export { monitoringService } from './monitoring'
+
+export type { SiteWeatherDto, WeatherReadingDto } from './weather'
+export { weatherService } from './weather'
 
 export { authService, identityService, siteService, getApiError } from './auth'
 export type { CurrentUser, IdentityUser, SiteDto } from './auth'
