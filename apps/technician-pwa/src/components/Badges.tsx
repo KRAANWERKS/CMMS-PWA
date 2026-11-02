@@ -1,4 +1,5 @@
 import { Badge, type BadgeProps } from '@mantine/core'
+import { useI18n } from '../i18n'
 
 type Size = BadgeProps['size']
 
@@ -28,12 +29,14 @@ const humanize = (value: string) => {
 
 /** Work order status. Dot style keeps it visually distinct from the priority badge. */
 export function StatusBadge({ status, size = 'sm' }: { status: string; size?: Size }) {
+  const { t } = useI18n()
   const style = statusStyle[status] ?? { label: humanize(status), color: 'gray' }
-  return <Badge size={size} variant="dot" color={style.color} tt="none">{style.label}</Badge>
+  return <Badge size={size} variant="dot" color={style.color} tt="none">{t(style.label)}</Badge>
 }
 
 /** Work order priority. */
 export function PriorityBadge({ priority, size = 'sm' }: { priority: string; size?: Size }) {
+  const { t } = useI18n()
   const style = priorityStyle[priority] ?? { label: humanize(priority), color: 'gray' }
-  return <Badge size={size} variant="light" color={style.color} tt="none">{style.label}</Badge>
+  return <Badge size={size} variant="light" color={style.color} tt="none">{t(style.label)}</Badge>
 }

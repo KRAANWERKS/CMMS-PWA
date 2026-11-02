@@ -1,8 +1,10 @@
+import { useI18n } from '../i18n'
 import { ActionIcon, Alert, AppShell, Avatar, Box, Burger, Button, Container, Divider, Drawer, Group, Menu, Modal, NavLink, Select, Stack, Text, ThemeIcon, UnstyledButton } from '@mantine/core'
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import { useIsFetching, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authService } from '@cmms/api-client'
 import { PullToRefresh } from '../components/PullToRefresh'
+import { SiteWeather } from '../components/SiteWeather'
 import { flushOutbox } from '../db/sync'
 import { useSignOut } from '../hooks/useSignOut'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -27,8 +29,6 @@ const navItems = [
   { path: '/profile', label: 'Profile', icon: IconUser },
 ]
 
-// The word is dropped from the header on phones (the logo is enough, and the room helps the site name);
-// the slide-out menu has space for it
 function Brand({ hideWordOnPhone = false }: { hideWordOnPhone?: boolean }) {
   return (
     <Group gap={10} wrap="nowrap">
@@ -40,37 +40,48 @@ function Brand({ hideWordOnPhone = false }: { hideWordOnPhone?: boolean }) {
   )
 }
 
-function SiteSelector() {
+function CurrentSitePanel() {
+  const { t } = useI18n()
   const { currentSite, currentSiteId, canSwitchSite, permittedSites, selectSite } = useTechnicianSite()
-  if (!canSwitchSite) {
-    return (
-      <>
-        <Text size="xs" fw={600} mb={8}>Current site</Text>
-        <Text size="sm" fw={650}>{currentSite?.name ?? 'Not selected'}</Text>
-      </>
-    )
-  }
   return (
-    <Select
-      label="Current site"
-      size="md"
-      styles={{ input: { fontSize: 'var(--mantine-font-size-xs)', paddingInline: 10, paddingRight: 28 }, option: { fontSize: 'var(--mantine-font-size-xs)' }, label: { marginBottom: 8, fontSize: 'var(--mantine-font-size-xs)', color: 'var(--mantine-color-text)', fontWeight: 600 } }}
-      value={currentSiteId}
-      onChange={value => value && selectSite(value)}
-      allowDeselect={false}
-      comboboxProps={{ withinPortal: false, position: 'top' }}
-      data={permittedSites.map(site => ({ value: site.id, label: site.code ? `${site.name} · ${site.code}` : site.name }))}
-    />
+    <Box p="sm" mb="sm" style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 8 }}>
+      <Group gap={7} mb={8}>
+        <IconMapPin size={17} color="var(--mantine-color-dimmed)" />
+        <Text size="xs" fw={750} tt="uppercase" c="dimmed">{t("Current site")}</Text>
+      </Group>
+      {canSwitchSite ? (
+        <Select
+          aria-label={t("Current site")}
+          size="sm"
+          value={currentSiteId}
+          onChange={value => value && selectSite(value)}
+          allowDeselect={false}
+          comboboxProps={{ withinPortal: false, position: 'bottom' }}
+          data={permittedSites.map(site => ({ value: site.id, label: site.code ? site.name + ' · ' + site.code : site.name }))}
+        />
+      ) : (
+        <Stack gap={2}>
+          <Text size="sm" fw={700}>{currentSite?.name ?? t('Not selected')}</Text>
+          {currentSite?.code && <Text size="xs" c="dimmed">{currentSite.code}</Text>}
+        </Stack>
+      )}
+      {currentSiteId && (
+        <>
+          <Divider my="sm" />
+          <SiteWeather siteId={currentSiteId} />
+        </>
+      )}
+    </Box>
   )
 }
 
 function MobileLayoutContent() {
+  const { t } = useI18n()
   const location = useLocation()
   const navigate = useNavigate()
   const [menuOpened, { open: openMenu, close: closeMenu }] = useDisclosure(false)
   const isDesktop = useMediaQuery('(min-width: 62em)')
   const { currentSite, permittedSites, requiresSelection, loading, selectSite } = useTechnicianSite()
-
   const { isOnline, lastSyncedAt } = useConnectionStatus()
   const queryClient = useQueryClient()
   const refreshing = useIsFetching() > 0
@@ -84,36 +95,38 @@ function MobileLayoutContent() {
   return (
     <AppShell
       header={{ height: 68 }}
-      navbar={{ width: 270, breakpoint: 'md', collapsed: { mobile: true } }}
+      navbar={{ width: 278, breakpoint: 'md', collapsed: { mobile: true } }}
       footer={{ height: 76, collapsed: !!isDesktop }}
       padding={0}
-      styles={{ main: { background: 'var(--mantine-color-body)' } }}
+      styles={{ main: { background: 'var(--mantine-color-body)', minWidth: 0, maxWidth: '100%', overflowX: 'clip' } }}
     >
       <AppShell.Header px={16} style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
         <Group h="100%" justify="space-between" wrap="nowrap">
           <Group gap={10} wrap="nowrap">
-            {!isDesktop && <Burger aria-label="Open navigation" opened={menuOpened} onClick={openMenu} size="md" style={{ minWidth: 44, minHeight: 44 }} />}
+            {!isDesktop && <Burger aria-label={t("Open navigation")} opened={menuOpened} onClick={openMenu} size="md" style={{ minWidth: 44, minHeight: 44 }} />}
             <Brand hideWordOnPhone />
           </Group>
           <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}>
-            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
-              <IconMapPin size="1.125rem" color="var(--mantine-color-dimmed)" />
-              <Text size="sm" fw={700} truncate maw={150}>{siteLabel}</Text>
-            </Group>
+            {!isDesktop && (
+              <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+                <IconMapPin size="1.125rem" color="var(--mantine-color-dimmed)" />
+                <Text size="sm" fw={700} truncate maw={120}>{siteLabel}</Text>
+              </Group>
+            )}
             <ConnectionIndicator />
-            <ActionIcon variant="subtle" color="gray" size={44} className="narrow-hide" aria-label="Refresh data" disabled={!isOnline || refreshing} onClick={refresh}>
+            <ActionIcon variant="subtle" color="gray" size={44} className="narrow-hide" aria-label={t("Refresh data")} disabled={!isOnline || refreshing} onClick={refresh}>
               <IconRefresh size="1.375rem" className={refreshing ? 'spin' : undefined} />
             </ActionIcon>
             <Menu position="bottom-end" width={200} withinPortal>
               <Menu.Target>
-                <UnstyledButton aria-label="Account menu">
+                <UnstyledButton aria-label={t("Account menu")}>
                   <Avatar size={40} radius="xl" color="blue">{user?.displayName?.slice(0, 1).toUpperCase() ?? 'U'}</Avatar>
                 </UnstyledButton>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Label>{user?.displayName ?? 'Technician'}</Menu.Label>
-                <Menu.Item leftSection={<IconUser size="1.25rem" />} onClick={() => navigate('/profile')}>Profile</Menu.Item>
-                <Menu.Item color="red" leftSection={<IconLogout size="1.25rem" />} onClick={async () => { await signOut() }}>Sign out</Menu.Item>
+                <Menu.Label>{user?.displayName ?? t('Technician')}</Menu.Label>
+                <Menu.Item leftSection={<IconUser size="1.25rem" />} onClick={() => navigate('/profile')}>{t('Profile')}</Menu.Item>
+                <Menu.Item color="red" leftSection={<IconLogout size="1.25rem" />} onClick={async () => { await signOut() }}>{t('Sign out')}</Menu.Item>
               </Menu.Dropdown>
             </Menu>
           </Group>
@@ -121,11 +134,12 @@ function MobileLayoutContent() {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs" style={{ borderRight: '1px solid var(--mantine-color-default-border)' }}>
+        <CurrentSitePanel />
         <Stack gap={2}>
           {navItems.map(item => (
             <NavLink
               key={item.path}
-              label={item.label}
+              label={t(item.label)}
               leftSection={<item.icon size="1.375rem" />}
               active={location.pathname.startsWith(item.path)}
               onClick={() => navigate(item.path)}
@@ -135,34 +149,44 @@ function MobileLayoutContent() {
             />
           ))}
         </Stack>
-        <Box mt="auto" p="xs">
-          <SiteSelector />
-        </Box>
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {!isOnline && <Alert color="yellow" radius={0} py={8}>You're offline. Showing saved data · {formatSynced(lastSyncedAt)}. Changes are saved on this device and sent when you reconnect.</Alert>}
+        {!isOnline && <Alert color="yellow" radius={0} py={8}>{t('Offline: showing saved data.')} {formatSynced(lastSyncedAt)}. {t('Changes will sync when you reconnect.')}</Alert>}
         {signOutError && <Alert color="red" radius={0} py={8} withCloseButton={false}>{signOutError}</Alert>}
         <PullToRefresh onRefresh={refresh}>
-        <Container size={960} px={16} py={14}>
-          {noSiteAccess && !profileRoute ? (
-            <Alert color="orange" title="No site access">Your account does not currently have access to a maintenance site. Ask an administrator to review your site access. You can still open Profile to sign out.</Alert>
-          ) : (
-            <Outlet />
-          )}
-        </Container>
+          <Container size={1320} px={16} py={14} style={{ minWidth: 0, maxWidth: '100%' }}>
+            {noSiteAccess && !profileRoute ? (
+              <Alert color="orange" title={t("No site access")}>{t("Your account does not currently have access to a maintenance site. Ask an administrator to review your site access. You can still open Profile to sign out.")}</Alert>
+            ) : (
+              <Outlet />
+            )}
+          </Container>
         </PullToRefresh>
       </AppShell.Main>
 
-      {!isDesktop && <AppShell.Footer style={{ borderTop: '1px solid var(--mantine-color-default-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <Group h="100%" grow gap={0} wrap="nowrap">
+      {!isDesktop && <AppShell.Footer style={{
+        borderTop: '1px solid var(--mantine-color-default-border)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        boxSizing: 'border-box',
+        width: '100%',
+        maxWidth: '100%',
+        overflow: 'hidden',
+      }}>
+        <Group h="100%" gap={0} wrap="nowrap" style={{ width: '100%', minWidth: 0, overflow: 'hidden' }}>
           {navItems.map(item => {
             const active = location.pathname.startsWith(item.path)
             return (
-              <UnstyledButton key={item.path} aria-label={item.label} aria-current={active ? 'page' : undefined} onClick={() => navigate(item.path)} style={{ minHeight: 56, height: '100%', minWidth: 0 }}>
-                <Stack gap={2} align="center" justify="center">
+              <UnstyledButton
+                key={item.path}
+                aria-label={t(item.label)}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => navigate(item.path)}
+                style={{ flex: '1 1 0', width: 0, minWidth: 0, height: '100%', padding: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Stack gap={2} align="center" justify="center" style={{ minWidth: 0, width: '100%', overflow: 'hidden' }}>
                   <item.icon size="1.5rem" stroke={active ? 2.1 : 1.7} color={active ? 'var(--mantine-color-text)' : 'var(--mantine-color-dimmed)'} />
-                  <Text size="xs" fw={active ? 800 : 600} c={active ? undefined : 'dimmed'} style={{ whiteSpace: 'nowrap', fontSize: '0.7rem' }}>{item.label}</Text>
+                  <Text size="xs" fw={active ? 800 : 600} c={active ? undefined : 'dimmed'} truncate style={{ maxWidth: '100%', fontSize: '0.7rem' }}>{t(item.label)}</Text>
                 </Stack>
               </UnstyledButton>
             )
@@ -180,20 +204,17 @@ function MobileLayoutContent() {
           body: { flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' },
         }}
       >
+        <CurrentSitePanel />
         <Stack gap={4}>
           {navItems.map(item => (
-            <Button key={item.path} h={52} variant={location.pathname.startsWith(item.path) ? 'light' : 'subtle'} color="dark" justify="flex-start" leftSection={<item.icon size="1.375rem" />} onClick={() => { navigate(item.path); closeMenu() }}>{item.label}</Button>
+            <Button key={item.path} h={52} variant={location.pathname.startsWith(item.path) ? 'light' : 'subtle'} color="dark" justify="flex-start" leftSection={<item.icon size="1.375rem" />} onClick={() => { navigate(item.path); closeMenu() }}>{t(item.label)}</Button>
           ))}
         </Stack>
-        <Box mt="auto">
-          <Divider mb="sm" />
-          <SiteSelector />
-        </Box>
       </Drawer>
 
-      <Modal opened={requiresSelection && !profileRoute} onClose={() => undefined} closeOnClickOutside={false} closeOnEscape={false} withCloseButton={false} centered title="Choose your current site">
+      <Modal opened={requiresSelection && !profileRoute} onClose={() => undefined} closeOnClickOutside={false} closeOnEscape={false} withCloseButton={false} centered title={t("Choose your current site")}>
         <Stack>
-          <Text size="sm" c="dimmed">Your account can work at more than one site. Choose the site for My Work. You can change it later from Profile.</Text>
+          <Text size="sm" c="dimmed">{t("Your account can work at more than one site. Choose the site for My Work. You can change it later from the sidebar or Profile.")}</Text>
           {permittedSites.map(site => (
             <Button
               key={site.id}

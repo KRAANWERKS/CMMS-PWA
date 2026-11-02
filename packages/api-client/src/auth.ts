@@ -32,15 +32,30 @@ export interface SiteDto {
   openWorkOrderCount: number
   overdueWorkOrderCount: number
   pmPlanCount: number
+  regionId?: string | null
+  regionName?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  locationUpdatedAt?: string | null
+}
+
+export interface RegionDto {
+  id: string
+  code: string
+  name: string
+}
+
+export interface UpdateSiteLocationRequest {
+  regionId: string | null
+  latitude: number | null
+  longitude: number | null
 }
 
 export function getApiError(error: unknown, fallback = 'Request failed'): string {
   if (axios.isAxiosError(error)) {
-    const data = error.response?.data as { detail?: string; title?: string; message?: string; errors?: Record<string, string[]> } | string | undefined
+    const data = error.response?.data as { detail?: string; title?: string; message?: string; error?: string } | string | undefined
     if (typeof data === 'string') return data || error.message || fallback
-    // ASP.NET validation problems carry the useful text in `errors`, not `title`
-    const fieldErrors = data?.errors ? Object.values(data.errors).flat().filter(Boolean).join(' ') : ''
-    return data?.detail || data?.message || fieldErrors || data?.title || error.message || fallback
+    return data?.detail || data?.message || data?.error || data?.title || error.message || fallback
   }
   return error instanceof Error ? error.message : fallback
 }
@@ -66,5 +81,22 @@ export const identityService = {
 export const siteService = {
   async getSites(): Promise<SiteDto[]> {
     return (await apiClient.get<SiteDto[]>('/sites')).data
+  },
+  async getAllSites(): Promise<SiteDto[]> {
+    const sites: SiteDto[] = []
+    for (let page = 1; ; page++) {
+      const batch = (await apiClient.get<SiteDto[]>('/sites', { params: { page, pageSize: 500 } })).data
+      sites.push(...batch)
+      if (batch.length < 500) return [...new Map(sites.map(site => [site.id, site])).values()]
+    }
+  },
+  async updateLocation(id: string, request: UpdateSiteLocationRequest): Promise<void> {
+    await apiClient.put(`/sites/${id}/location`, request)
+  },
+  async getRegions(): Promise<RegionDto[]> {
+    return (await apiClient.get<RegionDto[]>('/regions')).data
+  },
+  async createRegion(code: string, name: string): Promise<RegionDto> {
+    return (await apiClient.post<RegionDto>('/regions', { code, name })).data
   },
 }

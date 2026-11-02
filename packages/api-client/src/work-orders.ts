@@ -1,4 +1,22 @@
+export interface WorkOrderMeasurementEvidence {
+  id: string
+  workOrderTaskId?: string | null
+  taskResponseVersion?: number | null
+  supersedesReadingId?: string | null
+  kind: 'CONDITION' | 'METER'
+  assetId: string
+  targetId: string
+  value?: number | null
+  unit?: string | null
+  recordedAt: string
+  recordedBy?: string | null
+  source?: string | null
+  note?: string | null
+}
+
 import { apiClient } from './assets'
+
+export type TaskAttachmentDto = CapturedMediaAttachmentDto
 
 export interface CapturedMediaAttachmentDto {
   id: string
@@ -60,31 +78,6 @@ export interface WorkOrderPmOriginDto {
   cycleNumber: number
 }
 
-export interface TaskAttachmentDto {
-  id: string
-  fileName?: string | null
-  contentType?: string | null
-  fileSize?: number | null
-  checksumSha256?: string | null
-  contentUrl?: string
-}
-
-// A meter or measurement reading recorded against a work order
-export interface MeasurementEvidenceDto {
-  id: string
-  workOrderTaskId?: string | null
-  kind: string
-  assetId: string
-  targetId: string
-  value: number
-  unit?: string | null
-  recordedAt: string
-  recordedBy?: string | null
-  source?: string | null
-  note?: string | null
-  supersedesReadingId?: string | null
-}
-
 export interface WorkOrderHistoryEntryDto {
   id: string
   comment: string
@@ -92,6 +85,7 @@ export interface WorkOrderHistoryEntryDto {
   authorId?: string | null
   authorDisplayName?: string | null
   kind?: string | null
+  attachments?: CapturedMediaAttachmentDto[]
 }
 
 export interface CreateWorkRequest {
@@ -99,7 +93,7 @@ export interface CreateWorkRequest {
   requestedBy: string
   assetId?: string
   title: string
-  description: string
+  description?: string
   priority: string
   dueAt?: string
 }
@@ -113,8 +107,10 @@ export interface WorkOrderDto {
   title: string
   scheduledStart?: string | null
   scheduledEnd?: string | null
+  dueDate?: string | null
   actualStart?: string | null
   source?: string
+  latestActivity?: { at: string; label: string } | null
   siteId: string
   assetId: string | null
   assetName?: string | null
@@ -127,15 +123,15 @@ export interface WorkOrderDto {
   closedByUserId?: string | null
   closureReason?: string | null
   assignees: { userId: string; displayName: string }[]
-  tasks: { id: string; description: string; status: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'INFORMATION'; unit?: string | null; minimumValue?: number | null; maximumValue?: number | null; responseValue?: string | null; sourceInstructionId?: number | null; parentSourceInstructionId?: number | null; sourceInstructionType?: number | null; responseOptions?: string | null; linkedAsset?: { id: string; assetCode: string; name: string } | null; linkedMeter?: { id: string; name: string; unit: string } | null; minimumPhotoCount?: number; parentInstructionReferenceKey?: string | null; measurementRecords?: MeasurementEvidenceDto[]; attachments?: TaskAttachmentDto[]; referenceAttachments?: TaskAttachmentDto[]; instructionReferenceKey?: string | null; linkedMeasurementPoint?: { id: string; name: string; measurementType: string; unit: string; normalMinimum?: number | null; normalMaximum?: number | null } | null }[]
+  measurementEvidence?: WorkOrderMeasurementEvidence[]
+  tasks: { measurementRecords?: WorkOrderMeasurementEvidence[]; id: string; description: string; status: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'PHOTO' | 'INFORMATION' | 'GROUP'; assetLinkMode: 'NONE' | 'TRIGGER_ASSET' | 'ASSET'; minimumPhotoCount: number; instructionReferenceKey?: string | null; parentInstructionReferenceKey?: string | null; unit?: string | null; minimumValue?: number | null; maximumValue?: number | null; responseValue?: string | null; sourceInstructionId?: number | null; parentSourceInstructionId?: number | null; sourceInstructionType?: number | null; responseOptions?: string | null; linkedAsset?: { id: string; assetCode: string; name: string } | null; linkedMeter?: { id: string; name: string; unit: string } | null; linkedMeasurementPoint?: { id: string; name: string; measurementType: string; unit: string; normalMinimum?: number | null; normalMaximum?: number | null } | null; attachments: CapturedMediaAttachmentDto[]; referenceAttachments: CapturedMediaAttachmentDto[] }[]
   materials: { id: string; externalKey: string; requestType: string; state: string; sourceUpdatedAt: string }[]
   labor: { id: string; hours: number; workedAt: string; notes?: string }[]
   comments: { id: string; comment: string; createdAt: string }[]
   usage: { sparePartId?: string; partNumber?: string; quantity: number }[]
-  measurementEvidence?: MeasurementEvidenceDto[]
 }
 
-export interface CreateWorkOrderRequest { siteId: string; assetId: string; title: string; description?: string; priority: string; scheduledEnd?: string; assigneeIds?: string[]; instructions?: InstructionDefinition[]; saveAsTemplateName?: string }
+export interface CreateWorkOrderRequest { siteId: string; assetId: string | null; title: string; description?: string; priority: string; scheduledEnd?: string; assigneeIds?: string[]; instructions?: InstructionDefinition[]; saveAsTemplateName?: string }
 export interface GetWorkOrdersParams {
   view?: string
   search?: string
@@ -152,11 +148,12 @@ export interface GetWorkOrdersParams {
 }
 export interface GetWorkOrdersResponse { items: WorkOrderDto[]; totalCount: number; openCount: number; totalLaborHours: number; page: number; pageSize: number }
 
-export interface InstructionDefinition { description: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'INFORMATION'; unit?: string; minimumValue?: number; maximumValue?: number; responseOptions?: string }
+export interface InstructionDefinition { description: string; responseType: 'CHECKBOX' | 'NUMBER' | 'TEXT' | 'SELECT' | 'DATE' | 'PHOTO' | 'INFORMATION'; unit?: string; minimumValue?: number; maximumValue?: number; responseOptions?: string; minimumPhotoCount?: number; assetLinkMode?: 'NONE' | 'TRIGGER_ASSET' }
 export interface WorkOrderDefinition { assetId: string | null; title: string; description?: string; priority: string; assigneeIds: string[]; instructions: InstructionDefinition[]; dueOffsetDays?: number | null }
 export interface WorkOrderTemplate { id: string; siteId: string; name: string; definition: WorkOrderDefinition }
 
 export type ConditionRuleScope = 'ASSET' | 'ASSET_CATEGORY' | 'SITE'
+export type ConditionRuleMode = 'LEGACY' | 'BANDED' | 'FRESHNESS_ONLY'
 export interface ConditionRule {
   id: string
   siteId: string
@@ -169,6 +166,11 @@ export interface ConditionRule {
   minimumValue?: number | null
   maximumValue?: number | null
   breachState: string
+  ruleMode: ConditionRuleMode
+  warningMinimumValue?: number | null
+  warningMaximumValue?: number | null
+  criticalMinimumValue?: number | null
+  criticalMaximumValue?: number | null
   maxAgeDays: number
 }
 export interface ConditionRuleInput {
@@ -180,6 +182,11 @@ export interface ConditionRuleInput {
   maxAgeDays: number
   scopeType: ConditionRuleScope
   conditionPointKey?: string
+  ruleMode?: ConditionRuleMode
+  warningMinimumValue?: number | null
+  warningMaximumValue?: number | null
+  criticalMinimumValue?: number | null
+  criticalMaximumValue?: number | null
 }
 export interface ConditionAssessment {
   state: string
@@ -232,19 +239,17 @@ export const workOrderService = {
     const requestPage = async (pageNumber: number) => (await apiClient.get<GetWorkOrdersResponse>('/work-orders/query', {
       params: { siteId, assetId, status, priority, assigneeId, overdue, view, search, page: pageNumber, pageSize, sortBy, sortDirection }
     })).data
+
     const first = await requestPage(page)
+    if (page !== 1 || first.totalCount <= first.items.length || first.items.length >= pageSize) return first
 
-    // Compatibility for older complete-history consumers. New list/history UI should
-    // pass assetId and use the server-owned paged result directly.
-    if (params.page === undefined && pageSize === 100 && first.totalCount > first.items.length) {
-      const items = [...first.items]
-      const lastPage = Math.ceil(first.totalCount / pageSize)
-      for (let next = 2; next <= lastPage; next++) items.push(...(await requestPage(next)).items)
-      return { ...first, items }
+    const pages = Math.ceil(first.totalCount / pageSize)
+    const remaining = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, index) => requestPage(index + 2)))
+    return {
+      ...first,
+      items: [...first.items, ...remaining.flatMap(result => result.items)],
     }
-    return first
   },
-
   async getWorkOrderById(id: string): Promise<WorkOrderDto> { return (await apiClient.get<WorkOrderDto>(`/work-orders/${id}`)).data },
   async getPmOrigin(id: string): Promise<WorkOrderPmOriginDto | null> {
     const response = await apiClient.get<WorkOrderPmOriginDto>(`/work-orders/${id}/pm-origin`, { validateStatus: status => status === 200 || status === 204 })
@@ -257,17 +262,30 @@ export const workOrderService = {
   async createWorkOrder(request: CreateWorkOrderRequest): Promise<{ id: string }> { return (await apiClient.post<{ id: string }>('/work-orders', request)).data },
   async assign(id: string, userId: string): Promise<void> { await apiClient.post(`/work-orders/${id}/assign`, { userId }) },
   async setTaskCompleted(id: string, taskId: string, completed: boolean, responseValue?: string): Promise<void> { await apiClient.post(`/work-orders/${id}/tasks/${taskId}`, { completed, responseValue }) },
+  async getTaskAttachments(id: string, taskId: string): Promise<CapturedMediaAttachmentDto[]> {
+    return (await apiClient.get<CapturedMediaAttachmentDto[]>(`/work-orders/${id}/tasks/${taskId}/attachments`)).data
+  },
+  async uploadTaskPhoto(id: string, taskId: string, file: File): Promise<CapturedMediaAttachmentDto> {
+    const body = new FormData()
+    body.append('file', file)
+    return (await apiClient.post<CapturedMediaAttachmentDto>(`/work-orders/${id}/tasks/${taskId}/attachments`, body)).data
+  },
   async changeStatus(id: string, newStatus: string): Promise<void> { await apiClient.post(`/work-orders/${id}/status`, { newStatus }) },
   async recordLabor(id: string, hours: number, workedAt: string, note?: string): Promise<void> { await apiClient.post(`/work-orders/${id}/labor`, { hours, workedAt, note }) },
-  async complete(id: string, completionNotes: string): Promise<void> { await apiClient.post(`/work-orders/${id}/complete`, { completionNotes }) },
+  async complete(id: string, completionNotes: string, allowPendingInstructions = false): Promise<void> { await apiClient.post(`/work-orders/${id}/complete`, { completionNotes, allowPendingInstructions }) },
   async getHistory(id: string): Promise<WorkOrderHistoryEntryDto[]> { return (await apiClient.get<WorkOrderHistoryEntryDto[]>(`/work-orders/${id}/history`)).data },
+  async postComment(id: string, comment: string, images: File[] = []): Promise<void> {
+    const form = new FormData()
+    form.append('comment', comment)
+    images.forEach(image => form.append('images', image))
+    await apiClient.post('/work-orders/' + id + '/comments', form)
+  },
   async uploadTaskAttachment(workOrderId: string, taskId: string, file: Blob, fileName: string): Promise<void> {
     const form = new FormData()
     form.append('file', file, fileName)
-    // Let the browser set the multipart boundary
+    // Let the browser set the multipart boundary.
     await apiClient.post(`/work-orders/${workOrderId}/tasks/${taskId}/attachments`, form, { headers: { 'Content-Type': undefined } })
   },
-  // Attachment content needs the session cookie, so it is fetched as a blob instead of used as an <img src>
   async getAttachmentBlob(attachmentId: string): Promise<Blob> {
     return (await apiClient.get<Blob>(`/attachments/${attachmentId}/content`, { responseType: 'blob', transformResponse: [data => data] })).data
   },
