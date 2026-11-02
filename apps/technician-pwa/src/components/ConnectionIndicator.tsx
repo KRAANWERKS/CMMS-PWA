@@ -1,4 +1,5 @@
 import { Box, Button, Group, Popover, Stack, Text, UnstyledButton } from '@mantine/core'
+import { useI18n } from '../i18n'
 import { useQueryClient } from '@tanstack/react-query'
 import { db } from '../db/schema'
 import { useConnectionStatus, type ConnectionState } from '../hooks/useConnectionStatus'
@@ -18,6 +19,7 @@ export function formatSynced(timestamp: number | null) {
 }
 
 export function ConnectionIndicator() {
+  const { t } = useI18n()
   const { state, lastSyncedAt, pendingCount, failed, stuck } = useConnectionStatus()
   const queryClient = useQueryClient()
   // Dropping a change must also drop its optimistic result from the screen. Work orders are re-fetched with the
@@ -28,7 +30,9 @@ export function ConnectionIndicator() {
     void queryClient.invalidateQueries({ queryKey: ['work-order'] })
     if (await db.outbox.where('status').equals('PENDING').count() === 0) void queryClient.invalidateQueries({ queryKey: ['assets'] })
   }
-  const { label, color, detail } = display[state]
+  const { label: baseLabel, color, detail: baseDetail } = display[state]
+  const label = t(baseLabel)
+  const detail = t(baseDetail)
   // A rejected change is thrown away by the server, so make it visible without opening the popover
   const shownLabel = failed.length > 0 ? `${label} · ${failed.length} rejected` : stuck.length > 0 ? `${label} · ${stuck.length} not sending` : pendingCount > 0 ? `${label} · ${pendingCount} to sync` : label
   const dotColor = failed.length > 0 ? 'var(--mantine-color-red-6)' : stuck.length > 0 ? 'var(--mantine-color-orange-6)' : color
@@ -54,7 +58,7 @@ export function ConnectionIndicator() {
             {stuck.map(entry => (
               <Group key={entry.id} justify="space-between" wrap="nowrap" align="flex-start">
                 <Text size="xs" c="dimmed">{entry.action.toLowerCase()}: {entry.lastAttemptError}</Text>
-                <Button size="sm" variant="subtle" color="gray" onClick={() => removeEntry(entry.id!)}>Discard</Button>
+                <Button size="sm" variant="subtle" color="gray" onClick={() => removeEntry(entry.id!)}>{t('Discard')}</Button>
               </Group>
             ))}
           </Stack>
@@ -65,7 +69,7 @@ export function ConnectionIndicator() {
             {failed.map(entry => (
               <Group key={entry.id} justify="space-between" wrap="nowrap" align="flex-start">
                 <Text size="xs" c="dimmed">{entry.action.toLowerCase()}: {entry.error}</Text>
-                <Button size="sm" variant="subtle" color="gray" onClick={() => removeEntry(entry.id!)}>Dismiss</Button>
+                <Button size="sm" variant="subtle" color="gray" onClick={() => removeEntry(entry.id!)}>{t('Dismiss')}</Button>
               </Group>
             ))}
           </Stack>

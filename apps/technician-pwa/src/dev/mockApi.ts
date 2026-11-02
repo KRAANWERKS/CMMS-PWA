@@ -35,8 +35,8 @@ const assets: AssetDto[] = [
 
 const day = 86_400_000
 const ago = (days: number) => new Date(Date.now() - days * day).toISOString()
-const task = (n: number, description: string, responseType: WorkOrderDto['tasks'][number]['responseType'], extra: Partial<WorkOrderDto['tasks'][number]> = {}) =>
-  ({ id: `t${n}`, description, status: 'OPEN', responseType, ...extra })
+const task = (n: number, description: string, responseType: WorkOrderDto['tasks'][number]['responseType'], extra: Partial<WorkOrderDto['tasks'][number]> = {}): WorkOrderDto['tasks'][number] =>
+  ({ id: `t${n}`, description, status: 'OPEN', responseType, assetLinkMode: 'NONE', minimumPhotoCount: 0, attachments: [], referenceAttachments: [], ...extra })
 
 function wo(n: number, siteId: string, assetId: string, title: string, status: string, priority: string, workType: string, tasks: WorkOrderDto['tasks'], extra: Partial<WorkOrderDto> = {}): WorkOrderDto {
   const a = assets.find(item => item.id === assetId)!
@@ -49,11 +49,11 @@ function wo(n: number, siteId: string, assetId: string, title: string, status: s
 
 const workOrders: WorkOrderDto[] = [
   wo(1, 'site-vessel', 'a1', 'Main engine 250h service', 'IN_PROGRESS', 'HIGH', 'PREVENTIVE', [
-    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED', attachments: [{ id: 'att-1', fileName: 'tagout.png', contentType: 'image/png' }] }),
+    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED', attachments: [{ id: 'att-1', fileName: 'tagout.png', contentType: 'image/png', contentUrl: '' }] }),
     task(2, 'Record lube oil pressure', 'NUMBER', {
       unit: 'bar', minimumValue: 3, maximumValue: 6,
       linkedMeasurementPoint: { id: 'mp-1', name: 'Lube oil pressure', measurementType: 'PRESSURE', unit: 'bar', normalMinimum: 3.5, normalMaximum: 5.5 },
-      referenceAttachments: [{ id: 'ref-1', fileName: 'Gauge location.png', contentType: 'image/png' }, { id: 'ref-2', fileName: 'Service manual.pdf', contentType: 'application/pdf' }],
+      referenceAttachments: [{ id: 'ref-1', fileName: 'Gauge location.png', contentType: 'image/png', contentUrl: '' }, { id: 'ref-2', fileName: 'Service manual.pdf', contentType: 'application/pdf', contentUrl: '' }],
     }),
     task(3, 'Replace lube oil filter', 'CHECKBOX'),
     task(4, 'Oil condition', 'SELECT', { responseOptions: 'Clean, Dark, Contaminated' }),
@@ -186,7 +186,7 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
       const task = workOrders.find(w => w.id === m![1])?.tasks.find(x => x.id === m![2])
       if (!task) throw new HttpError(404, 'Task not found')
       const file = body.file as File | undefined
-      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: file?.name ?? 'photo.jpg', contentType: file?.type || 'image/jpeg', fileSize: file?.size, checksumSha256: body.sha as string | undefined }]
+      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: file?.name ?? 'photo.jpg', contentType: file?.type || 'image/jpeg', fileSize: file?.size, checksumSha256: body.sha as string | undefined, contentUrl: '' }]
       return null
     }
     if ((m = url.match(/^\/assets\/([^/]+)\/meter-readings$/))) {

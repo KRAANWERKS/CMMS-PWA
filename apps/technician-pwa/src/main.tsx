@@ -12,6 +12,7 @@ import '@mantine/core/styles.css'
 import '@mantine/notifications/styles.css'
 import './app.css'
 import { theme } from './theme'
+import { LanguageProvider } from './i18n'
 import { applyTextScale, getTextScale } from './textScale'
 import { registerSW } from 'virtual:pwa-register'
 import { startOutboxSync } from './db/sync'
@@ -51,10 +52,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: CACHE_MAX_AGE, buster: 'v1', // Keep anything that has data, even if a later refresh failed, so a flaky connection never wipes the saved copy
     dehydrateOptions: { shouldDehydrateQuery: query => query.state.data !== undefined && query.queryKey[0] !== 'attachment' } }}>
       <MantineProvider theme={theme} defaultColorScheme="auto">
+        <LanguageProvider>
         <Notifications />
         <BrowserRouter basename="/pwa">
           <App />
         </BrowserRouter>
+        </LanguageProvider>
       </MantineProvider>
     </PersistQueryClientProvider>
   </React.StrictMode>,

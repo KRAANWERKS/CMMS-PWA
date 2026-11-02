@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n'
 import { useEffect, useMemo, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -27,6 +28,7 @@ async function shrinkImage(file: File): Promise<{ blob: Blob; name: string }> {
 }
 
 export function AttachmentThumb({ attachment }: { attachment: TaskAttachmentDto }) {
+  const { t } = useI18n()
   const image = attachment.contentType ? attachment.contentType.startsWith('image/') : true
   // A photo still waiting to upload lives in the on-device outbox, not on the server
   const pendingId = attachment.id.startsWith('pending-') ? Number(attachment.id.slice('pending-'.length)) : null
@@ -45,8 +47,8 @@ export function AttachmentThumb({ attachment }: { attachment: TaskAttachmentDto 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url) }, [url])
   return (
     <Box w={72} h={72} style={{ borderRadius: 6, overflow: 'hidden', border: '1px solid var(--mantine-color-default-border)', display: 'grid', placeItems: 'center' }}>
-      {url ? <img src={url} alt={attachment.fileName ?? 'Task photo'} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: pendingId === null ? 1 : 0.6 }} />
-        : isLoading && pendingId === null ? <Loader size="xs" /> : <Text size="xs" c="dimmed" ta="center" px={4} style={{ wordBreak: 'break-all' }}>{attachment.fileName ?? 'File'}</Text>}
+      {url ? <img src={url} alt={attachment.fileName ?? t('Task photo')} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: pendingId === null ? 1 : 0.6 }} />
+        : isLoading && pendingId === null ? <Loader size="xs" /> : <Text size="xs" c="dimmed" ta="center" px={4} style={{ wordBreak: 'break-all' }}>{attachment.fileName ?? t('File')}</Text>}
     </Box>
   )
 }
@@ -62,6 +64,7 @@ interface Props {
 }
 
 export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled, readOnly }: Props) {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const input = useRef<HTMLInputElement>(null)
   const upload = useMutation({
@@ -82,7 +85,7 @@ export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled
     <Stack gap={6}>
       {(minimum > 0 || attachments.length > 0) && (
         <Text size="xs" c={missing > 0 ? 'orange' : 'dimmed'} fw={missing > 0 ? 650 : 400}>
-          {minimum > 0 ? `Photos: ${attachments.length} of ${minimum} required` : `Photos: ${attachments.length}`}
+          {minimum > 0 ? `${t('Photos:')} ${attachments.length} / ${minimum} ${t('required')}` : `${t('Photos:')} ${attachments.length}`}
         </Text>
       )}
       {attachments.length > 0 && <Group gap={6}>{attachments.map(item => <AttachmentThumb key={item.id} attachment={item} />)}</Group>}
@@ -99,10 +102,10 @@ export function TaskPhotos({ workOrderId, taskId, attachments, minimum, disabled
         }}
       />
       <Button variant="light" leftSection={<IconCamera size="1.25rem" />} loading={upload.isPending} disabled={disabled} onClick={() => input.current?.click()}>
-        {attachments.length ? 'Add another photo' : 'Add photo'}
+        {t(attachments.length ? 'Add another photo' : 'Add photo')}
       </Button>
-      {upload.data === 'queued' && <Text size="xs" c="dimmed">Saved on this device. It uploads automatically when you're back online.</Text>}
-      {upload.error && <Alert color="red" p="xs">{getApiError(upload.error, 'Photo upload failed')}</Alert>}
+      {upload.data === 'queued' && <Text size="xs" c="dimmed">{t("Saved on this device. It uploads automatically when you're back online.")}</Text>}
+      {upload.error && <Alert color="red" p="xs">{getApiError(upload.error, t('Photo upload failed'))}</Alert>}
     </Stack>
   )
 }

@@ -18,7 +18,7 @@ async function send(entry: OutboxEntry) {
     case 'STATUS': return workOrderService.changeStatus(entry.workOrderId!, p.status)
     case 'COMPLETE': return workOrderService.complete(entry.workOrderId!, p.notes)
     case 'PHOTO': return workOrderService.uploadTaskAttachment(entry.workOrderId!, p.taskId, p.blob as Blob, p.fileName)
-    case 'METER': return assetService.recordMeterReading(entry.assetId!, p.meterId, p.value, p.note, undefined, p.readingAt)
+    case 'METER': return assetService.recordMeterReading(entry.assetId!, p.meterId, p.value, p.note, entry.workOrderId, p.readingAt)
   }
 }
 
@@ -126,14 +126,14 @@ export function startOutboxSync(queryClient: QueryClient) {
 
 // ---- Showing queued changes before the server has them ------------------------
 
-const heuristicTransitions: Record<string, string[]> = { IN_PROGRESS: ['COMPLETED'], COMPLETED: [] }
+const heuristicTransitions: Record<string, string[]> = { IN_PROGRESS: ['COMPLETED', 'ON_HOLD'], ON_HOLD: ['IN_PROGRESS'], COMPLETED: [] }
 
 export function applyEntry(wo: WorkOrderDto, entry: OutboxEntry): WorkOrderDto {
   const p = entry.payload as Record<string, any>
   switch (entry.action) {
     case 'TASK':
       return { ...wo, tasks: wo.tasks.map(task => task.id !== p.taskId ? task : {
-        ...task, status: p.completed ? 'COMPLETED' : 'OPEN', responseValue: p.responseValue ?? task.responseValue,
+        ...task, measurementRecords: [], status: p.completed ? 'COMPLETED' : 'OPEN', responseValue: p.responseValue ?? task.responseValue,
       }) }
     case 'LABOR':
       return {
@@ -150,7 +150,7 @@ export function applyEntry(wo: WorkOrderDto, entry: OutboxEntry): WorkOrderDto {
     case 'PHOTO':
       // Shown right away; the real attachment replaces it once the upload has synced
       return { ...wo, tasks: wo.tasks.map(task => task.id !== p.taskId ? task : {
-        ...task, attachments: [...(task.attachments ?? []), { id: `pending-${entry.id}`, fileName: p.fileName, contentType: 'image/jpeg' }],
+        ...task, attachments: [...(task.attachments ?? []), { id: `pending-${entry.id}`, fileName: p.fileName, contentType: 'image/jpeg', contentUrl: '' }],
       }) }
     case 'COMPLETE':
       return { ...wo, status: 'COMPLETED', allowedTransitions: [] }

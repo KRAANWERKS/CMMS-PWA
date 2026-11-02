@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Badge, Button, Group, NumberInput, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
@@ -15,6 +16,7 @@ const statusColor = (status: string) => status === 'ACTIVE' ? 'teal' : status ==
 const healthColor: Record<string, string> = { GOOD: 'teal', WATCH: 'yellow', BAD: 'red' }
 
 export default function AssetsList() {
+  const { t } = useI18n()
   const { currentSiteId } = useTechnicianSite()
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get('search') ?? '')
@@ -44,27 +46,27 @@ export default function AssetsList() {
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <Text fw={750} size="xl">Assets</Text>
+        <Text fw={750} size="xl">{t("Assets")}</Text>
         <Text size="xs" c="dimmed">{filtered.length} asset{filtered.length === 1 ? '' : 's'}</Text>
       </Group>
 
       <TextInput
-        placeholder="Search assets..."
-        aria-label="Search assets"
+        placeholder={t('Search assets...')}
+        aria-label={t('Search assets')}
         leftSection={<IconSearch size="1.25rem" />}
         value={search}
         onChange={e => setSearch(e.currentTarget.value)}
       />
 
       {filtered.length === 0 ? (
-        <CMMSEmptyState title={debounced ? 'No assets match your search' : 'No assets at this site'} />
+        <CMMSEmptyState title={t(debounced ? 'No assets match your search' : 'No assets at this site')} />
       ) : (
         <>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs" style={{ gridAutoFlow: 'row dense' }}>
             {shown.map(asset => <AssetCard key={asset.id} asset={asset} expanded={selectedAssetId === asset.id} onToggle={() => setSelectedAssetId(current => current === asset.id ? null : asset.id)} />)}
           </SimpleGrid>
           {filtered.length > shown.length && (
-            <Button variant="default" onClick={() => setVisible(count => count + PAGE_STEP)}>Show more ({filtered.length - shown.length} remaining)</Button>
+            <Button variant="default" onClick={() => setVisible(count => count + PAGE_STEP)} >{t('Show more')} ({filtered.length - shown.length} {t('remaining')})</Button>
           )}
         </>
       )}
@@ -73,6 +75,7 @@ export default function AssetsList() {
 }
 
 function AssetCard({ asset, expanded, onToggle }: { asset: AssetDto; expanded: boolean; onToggle: () => void }) {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const condition = asset.health?.conditionStatus
   const details = [asset.manufacturer, asset.model].filter(Boolean).join(' · ')
@@ -89,15 +92,15 @@ function AssetCard({ asset, expanded, onToggle }: { asset: AssetDto; expanded: b
           </div>
         </Group>
         <Stack gap={4} align="flex-end">
-          <Badge size="xs" variant="light" color={statusColor(asset.status)}>{asset.status}</Badge>
-          {condition && condition !== 'NO_DATA' && <Badge size="xs" variant="dot" color={healthColor[condition] ?? 'gray'}>{condition}</Badge>}
+          <Badge size="xs" variant="light" color={statusColor(asset.status)}>{t(asset.status)}</Badge>
+          {condition && condition !== 'NO_DATA' && <Badge size="xs" variant="dot" color={healthColor[condition] ?? 'gray'} >{t(condition)}</Badge>}
         </Stack>
       </Group>
       <Group justify="space-between" gap="xs" mt="auto" pt="xs">
-        <Button size="sm" h={44} variant="default" styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconClipboardList size="1.25rem" style={{ display: 'block' }} />} onClick={() => navigate(`/work-orders?asset=${asset.id}`)}>Work orders</Button>
-        <Button size="sm" h={44} variant="subtle" onClick={() => navigate(`/work-requests/new?asset=${asset.id}`)}>Report issue</Button>
+        <Button size="sm" h={44} variant="default" styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconClipboardList size="1.25rem" style={{ display: 'block' }} />} onClick={() => navigate(`/work-orders?asset=${asset.id}`)}>{t("Work orders")}</Button>
+        <Button size="sm" h={44} variant="subtle" onClick={() => navigate(`/work-requests/new?asset=${asset.id}`)}>{t("Report issue")}</Button>
         {asset.meters?.length ? (
-          <Button size="sm" h={44} color="yellow" c="#111827" fw={700} styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconGauge size="1.25rem" style={{ display: 'block' }} />} aria-expanded={expanded} onClick={onToggle}>{expanded ? 'Hide meters' : 'Record meter'}</Button>
+          <Button size="sm" h={44} color="yellow" c="#111827" fw={700} styles={{ section: { display: 'flex', alignItems: 'center' }, label: { lineHeight: 1 } }} leftSection={<IconGauge size="1.25rem" style={{ display: 'block' }} />} aria-expanded={expanded} onClick={onToggle}>{t(expanded ? 'Hide meters' : 'Record meter')}</Button>
         ) : null}
       </Group>
       {expanded && <Stack gap="xs" mt="sm">{asset.meters?.map(meter => <MeterRecorder key={meter.id} assetId={asset.id} meter={meter} />)}</Stack>}
@@ -106,6 +109,7 @@ function AssetCard({ asset, expanded, onToggle }: { asset: AssetDto; expanded: b
 }
 
 function MeterRecorder({ assetId, meter }: { assetId: string; meter: AssetMeterDto }) {
+  const { t } = useI18n()
   const qc = useQueryClient()
   const [value, setValue] = useState<number | string>(meter.currentReading ?? '')
   const [note, setNote] = useState('')
@@ -122,11 +126,11 @@ function MeterRecorder({ assetId, meter }: { assetId: string; meter: AssetMeterD
   })
   return <Paper p="xs" radius="sm" bg="var(--mantine-color-gray-light)">
     <Text size="sm" fw={600}>{meter.name}</Text>
-    <Text size="xs" c="dimmed" mb="xs">Current: {meter.currentReading?.toLocaleString() ?? 'No reading'} {meter.unit}</Text>
-    <NumberInput label="New reading" value={value} onChange={setValue} clampBehavior="none" allowNegative={false} suffix={` ${meter.unit}`} decimalScale={3} error={value !== '' && Number(value) < (meter.currentReading ?? 0) ? `Cannot be lower than the current reading (${meter.currentReading?.toLocaleString()})` : undefined} />
-    <TextInput label="Note (optional)" value={note} onChange={event => setNote(event.currentTarget.value)} maxLength={500} mt="xs" />
-    <Button fullWidth mt="xs" loading={save.isPending} disabled={value === '' || Number(value) < (meter.currentReading ?? 0)} onClick={() => save.mutate()}>Save meter reading</Button>
-    {save.isSuccess && queued && <Alert color="blue" mt="xs">Saved on this device. It will sync when you're back online.</Alert>}
+    <Text size="xs" c="dimmed" mb="xs" >{t('Current:')} {meter.currentReading?.toLocaleString() ?? t('No reading')} {meter.unit}</Text>
+    <NumberInput label={t('New reading')} value={value} onChange={setValue} clampBehavior="none" allowNegative={false} suffix={` ${meter.unit}`} decimalScale={3} error={value !== '' && Number(value) < (meter.currentReading ?? 0) ? `${t('Cannot be lower than the current reading')} (${meter.currentReading?.toLocaleString()})` : undefined} />
+    <TextInput label={t('Note (optional)')} value={note} onChange={event => setNote(event.currentTarget.value)} maxLength={500} mt="xs" />
+    <Button fullWidth mt="xs" loading={save.isPending} disabled={value === '' || Number(value) < (meter.currentReading ?? 0)} onClick={() => save.mutate()}>{t("Save meter reading")}</Button>
+    {save.isSuccess && queued && <Alert color="blue" mt="xs">{t("Saved on this device. It will sync when you're back online.")}</Alert>}
     {save.error && <Alert color="red" mt="xs">{getApiError(save.error)}</Alert>}
   </Paper>
 }
