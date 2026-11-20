@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Badge, Button, Group, Paper, SimpleGrid, Stack, Text, TextInput } from '@mantine/core'
@@ -10,6 +11,7 @@ import { ListSkeleton } from '../components/Skeletons'
 const PAGE_STEP = 20
 
 export default function PartsPage() {
+  const { t } = useI18n()
   const [search, setSearch] = useState('')
   const [debounced] = useDebouncedValue(search.trim().toLowerCase(), 250)
   const [visible, setVisible] = useState(PAGE_STEP)
@@ -39,20 +41,20 @@ export default function PartsPage() {
   return (
     <Stack gap="md">
       <Group justify="space-between">
-        <Text fw={750} size="xl">Parts</Text>
-        <Text size="xs" c="dimmed">{filtered.length} part{filtered.length === 1 ? '' : 's'}</Text>
+        <Text fw={750} size="xl">{t('Parts')}</Text>
+        <Text size="xs" c="dimmed">{filtered.length} {t('Parts')}</Text>
       </Group>
 
       <TextInput
-        placeholder="Search parts..."
-        aria-label="Search parts"
+        placeholder={t('Search parts...')}
+        aria-label={t('Search parts')}
         leftSection={<IconSearch size="1.25rem" />}
         value={search}
         onChange={e => setSearch(e.currentTarget.value)}
       />
 
       {filtered.length === 0 ? (
-        <CMMSEmptyState title={debounced ? 'No parts match your search' : 'No parts available'} />
+        <CMMSEmptyState title={t(debounced ? 'No parts match your search' : 'No parts available')} />
       ) : (
         <>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xs">
@@ -73,8 +75,8 @@ export default function PartsPage() {
                       </div>
                     </Group>
                     <Stack gap={4} align="flex-end">
-                      <Badge size="xs" variant="light" color={part.verificationStatus === 'VERIFIED' ? 'teal' : part.verificationStatus === 'OBSOLETE' ? 'red' : 'gray'}>{part.verificationStatus}</Badge>
-                      {known && <Badge size="xs" variant="light" color={out ? 'red' : low ? 'orange' : 'teal'}>{out ? 'Out of stock' : low ? `Low · ${stock} ${part.uom}` : `${stock} ${part.uom} in stock`}</Badge>}
+                      <Badge size="xs" variant="light" color={part.verificationStatus === 'VERIFIED' ? 'teal' : part.verificationStatus === 'OBSOLETE' ? 'red' : 'gray'}>{t(part.verificationStatus)}</Badge>
+                      {known && <Badge size="xs" variant="light" color={out ? 'red' : low ? 'orange' : 'teal'}>{out ? t('Out of stock') : low ? `${t('Low')} · ${stock} ${part.uom}` : `${stock} ${part.uom} ${t('in stock')}`}</Badge>}
                       {!known && <Text size="xs" c="dimmed">{part.uom}</Text>}
                     </Stack>
                   </Group>
@@ -83,7 +85,7 @@ export default function PartsPage() {
             })}
           </SimpleGrid>
           {filtered.length > shown.length && (
-            <Button variant="default" onClick={() => setVisible(count => count + PAGE_STEP)}>Show more ({filtered.length - shown.length} remaining)</Button>
+            <Button variant="default" onClick={() => setVisible(count => count + PAGE_STEP)}>{t('Show more')} ({filtered.length - shown.length} {t('remaining')})</Button>
           )}
         </>
       )}

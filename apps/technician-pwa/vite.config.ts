@@ -15,8 +15,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
         manifest: {
-          name: 'CMMS Technician PWA',
-          short_name: 'CMMS Tech',
+          name: 'CMMS Engineer',
+          short_name: 'CMMS Engineer',
           description: 'CMMS for field engineers; works offline and syncs when you reconnect',
           theme_color: '#FFA903',
           background_color: '#ffffff',

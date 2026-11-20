@@ -28,7 +28,7 @@ export function usePrefetchOpenWorkOrders(siteId: string | null | undefined) {
         await flushOutbox()
         const ids = new Set<string>()
         for (let page = 1; page <= MAX_PAGES && !cancelled; page++) {
-          const result = await workOrderService.getWorkOrders({ siteId, view: 'open', page, pageSize: PAGE })
+          const result = await workOrderService.getWorkOrders({ siteId, view: 'open', page, pageSize: PAGE, assignedToMe: true })
           result.items.forEach(item => ids.add(item.id))
           if (result.items.length < PAGE) break
         }

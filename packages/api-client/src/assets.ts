@@ -54,6 +54,27 @@ export interface AssetDto {
   health?: AssetHealthDto
 }
 
+export interface MeterReadingResult {
+  id: string
+  flaggedWorkOrders?: string[]
+}
+
+export interface MeterDailyUsageDto {
+  id: string
+  unit: string
+  /** Configured limit; null uses the default. */
+  maxDailyIncrease?: number | null
+  defaultDailyIncrease?: number | null
+  effectiveDailyIncrease?: number | null
+  maxAllowedNow?: number | null
+  averageDaily?: number | null
+  peakDaily?: number | null
+  suggestedDailyIncrease?: number | null
+  sampleCount: number
+  from?: string | null
+  to?: string | null
+}
+
 export interface AssetMeterDto {
   id: string
   assetId: string
@@ -63,6 +84,8 @@ export interface AssetMeterDto {
   unit: string
   currentReading?: number
   readingAt?: string
+  /** Configured plausibility limit per day; null uses the unit default (24 h/day for hour meters). */
+  maxDailyIncrease?: number | null
 }
 
 export interface AssetMeasurementPointDto {
@@ -77,6 +100,88 @@ export interface AssetMeasurementPointDto {
   currentValue?: number
   currentStatus?: 'GOOD' | 'WATCH' | 'BAD' | string
   readingAt?: string
+  expectedValue?: number
+  standardProfileId?: string
+  standardRuleId?: string
+  standardRuleCode?: string
+  standardRuleReviewStatus?: string
+  manualReference?: string
+  sourcePageOrSection?: string
+}
+
+export interface MaintenanceStandardRuleDto {
+  id: string
+  code: string
+  name: string
+  ruleType: string
+  measurementType?: string
+  unit?: string
+  minimumValue?: number
+  maximumValue?: number
+  expectedValue?: number
+  intervalValue?: number
+  intervalUnit?: string
+  expectedLifeValue?: number
+  expectedLifeUnit?: string
+  manualReference?: string
+  manualRevision?: string
+  sourcePageOrSection?: string
+  reviewStatus: string
+  isActive: boolean
+  effective: boolean
+}
+
+export interface MaintenanceStandardProfileSummaryDto {
+  id: string
+  code: string
+  name: string
+  description?: string
+  manufacturer?: string
+  model?: string
+  series?: string
+  manualReference?: string
+  manualRevision?: string
+  reviewStatus: string
+  isActive: boolean
+  ruleCount: number
+  approvedRuleCount: number
+}
+
+export interface MaintenanceStandardProfileDetailDto {
+  id: string
+  code: string
+  name: string
+  description?: string
+  manufacturer?: string
+  model?: string
+  series?: string
+  manualReference?: string
+  manualRevision?: string
+  reviewStatus: string
+  isActive: boolean
+  rules: MaintenanceStandardRuleDto[]
+}
+
+export interface AssetStandardAssignmentDto {
+  id: string
+  assetId: string
+  standardProfileId: string
+  usageSourceMeterId?: string
+  isPrimary: boolean
+  isActive: boolean
+  profile: {
+    id: string
+    code: string
+    name: string
+    manufacturer?: string
+    model?: string
+    series?: string
+    manualReference?: string
+    manualRevision?: string
+    reviewStatus: string
+    isActive: boolean
+  }
+  rules: MaintenanceStandardRuleDto[]
 }
 
 export interface AssetHealthDto {
@@ -96,6 +201,11 @@ export interface AssetHealthDto {
   consumedLifeValue?: number
   remainingLifeValue?: number
   remainingLifePercent?: number
+  expectedLifeSource?: 'ASSET_OVERRIDE' | 'STANDARD' | string
+  expectedLifeStandardRuleId?: string
+  expectedLifeStandardRuleCode?: string
+  expectedLifeManualReference?: string
+  expectedLifeSourcePageOrSection?: string
 }
 
 export interface MeasurementPointInput {
@@ -107,6 +217,21 @@ export interface MeasurementPointInput {
   normalMaximum?: number
   description?: string
   isActive?: boolean
+}
+
+export interface AssetProfileInput {
+  siteId: string
+  assetCode: string
+  name: string
+  description?: string
+  manufacturer?: string
+  model?: string
+  serialNumber?: string
+  parentAssetId?: string | null
+  status: string
+  criticality: number
+  installedAt?: string | null
+  retiredAt?: string | null
 }
 
 export interface GetAssetsParams {
@@ -124,6 +249,18 @@ export interface GetAssetsResponse {
 }
 
 export const assetService = {
+  async createAsset(input: AssetProfileInput): Promise<{ id: string }> {
+    return (await apiClient.post<{ id: string }>('/assets', input)).data
+  },
+
+  async moveAsset(id: string, parentAssetId: string | null): Promise<void> {
+    await apiClient.put(`/assets/${id}/parent`, { parentAssetId })
+  },
+
+  async updateAsset(id: string, input: AssetProfileInput): Promise<void> {
+    await apiClient.put(`/assets/${id}`, input)
+  },
+
   async getAssets(params: GetAssetsParams): Promise<GetAssetsResponse> {
     const { siteId, search, page = 1, pageSize = 20 } = params
     const response = await apiClient.get<AssetDto[]>('/assets', {
@@ -137,19 +274,16 @@ export const assetService = {
     }
   },
 
-  // The server caps pageSize at 500, so larger sites need several pages
+  // The API caps pageSize at 500, so larger sites need several pages.
   async getAllAssets(siteId: string, search?: string): Promise<GetAssetsResponse> {
     const pageSize = 500
-    const items = new Map<string, AssetDto>()
-    for (let page = 1; page <= 40; page++) {
+    const items: AssetDto[] = []
+    for (let page = 1; ; page++) {
       const batch = (await assetService.getAssets({ siteId, search, page, pageSize })).items
-      const before = items.size
-      for (const asset of batch) items.set(asset.id, asset)
-      // A short page is the last one; no new rows means the server is repeating a page
-      if (batch.length < pageSize || items.size === before) break
+      items.push(...batch)
+      if (batch.length < pageSize) break
     }
-    const all = [...items.values()]
-    return { items: all, totalCount: all.length, page: 1, pageSize: all.length }
+    return { items, totalCount: items.length, page: 1, pageSize: items.length }
   },
 
   async getAssetById(id: string): Promise<AssetDto> {
@@ -164,14 +298,25 @@ export const assetService = {
     return response.data
   },
 
-  async recordMeterReading(assetId: string, meterId: string, value: number, note?: string, workOrderId?: string, readingAt?: string): Promise<void> {
-    await apiClient.post(`/assets/${assetId}/meter-readings`, {
+  async recordMeterReading(assetId: string, meterId: string, value: number, note?: string, workOrderId?: string, readingAt?: string, isCorrection = false, confirmUnusualIncrease = false): Promise<MeterReadingResult> {
+    const response = await apiClient.post<MeterReadingResult>(`/assets/${assetId}/meter-readings`, {
       meterId,
       value,
       readingAt: readingAt ?? new Date().toISOString(),
       note: note?.trim() || undefined,
       workOrderId,
+      isCorrection,
+      confirmUnusualIncrease,
     })
+    return response.data
+  },
+
+  async getMeterDailyUsage(assetId: string, meterId: string, days = 180): Promise<MeterDailyUsageDto> {
+    return (await apiClient.get<MeterDailyUsageDto>(`/assets/${assetId}/meters/${meterId}/daily-usage`, { params: { days } })).data
+  },
+
+  async setMeterLimit(assetId: string, meterId: string, maxDailyIncrease: number | null): Promise<void> {
+    await apiClient.put(`/assets/${assetId}/meters/${meterId}/limit`, { maxDailyIncrease })
   },
 
   async createMeasurementPoint(assetId: string, input: MeasurementPointInput): Promise<{ id: string }> {
@@ -197,6 +342,32 @@ export const assetService = {
       meterId: input.meterId || null,
       baselineValue: input.baselineValue ?? null,
       expectedLifeValue: input.expectedLifeValue ?? null,
+    })
+  },
+
+  async getAssetStandards(assetId: string): Promise<AssetStandardAssignmentDto[]> {
+    return (await apiClient.get<AssetStandardAssignmentDto[]>(`/assets/${assetId}/standards`)).data
+  },
+
+  async getMaintenanceStandards(): Promise<MaintenanceStandardProfileSummaryDto[]> {
+    return (await apiClient.get<MaintenanceStandardProfileSummaryDto[]>('/maintenance-standards')).data
+  },
+
+  async getMaintenanceStandard(id: string): Promise<MaintenanceStandardProfileDetailDto> {
+    return (await apiClient.get<MaintenanceStandardProfileDetailDto>(`/maintenance-standards/${id}`)).data
+  },
+
+  async assignMaintenanceStandard(assetId: string, profileId: string, input: {
+    usageSourceMeterId?: string
+    isPrimary?: boolean
+    isActive?: boolean
+    useAsAssetUsageSource?: boolean
+  } = {}): Promise<void> {
+    await apiClient.put(`/assets/${assetId}/standards/${profileId}`, {
+      usageSourceMeterId: input.usageSourceMeterId || null,
+      isPrimary: input.isPrimary ?? true,
+      isActive: input.isActive ?? true,
+      useAsAssetUsageSource: input.useAsAssetUsageSource ?? false,
     })
   }
 }

@@ -1,3 +1,4 @@
+import { useI18n } from '../i18n'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Group, Image, Modal, Stack, Text } from '@mantine/core'
@@ -9,6 +10,7 @@ const isImage = (item: TaskAttachmentDto) =>
 
 /** Reference material a planner attached to an instruction (how-to photos, manuals). Read only. */
 export function TaskReferences({ items }: { items: TaskAttachmentDto[] }) {
+  const { t } = useI18n()
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string>()
@@ -43,7 +45,7 @@ export function TaskReferences({ items }: { items: TaskAttachmentDto[] }) {
 
   return (
     <Stack gap={6} mb={10}>
-      <Text size="xs" fw={650} c="dimmed" tt="uppercase">Reference</Text>
+      <Text size="xs" fw={650} c="dimmed" tt="uppercase">{t('Reference')}</Text>
       <Group gap={6}>
         {items.map(item => (
           <Button key={item.id} size="sm" h="auto" mih={44} py={6} variant="default" loading={busy === item.id} styles={{ inner: { minHeight: 44 }, label: { whiteSpace: 'normal', textAlign: 'left', wordBreak: 'break-word', overflow: 'visible' } }} leftSection={isImage(item) ? <IconPhoto size="1.25rem" /> : <IconFileText size="1.25rem" />} onClick={() => open(item)}>

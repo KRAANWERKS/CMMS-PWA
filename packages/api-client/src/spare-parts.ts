@@ -33,7 +33,7 @@ export interface InventoryBalanceDto {
   quantityOnHand: number
   quantityReserved: number
   odooSnapshotAt: string | null
-  source: 'ODOO' | 'LEGACY_UNVERIFIED'
+  source: 'CMMS' | 'ODOO' | 'LEGACY_UNVERIFIED'
 }
 
 export interface GetSparePartsResponse {
@@ -60,19 +60,16 @@ export const sparePartService = {
     }
   },
 
-  // The server caps pageSize at 100, so the full catalogue needs several pages
+  // The API caps pageSize at 100, so the full catalogue needs several pages.
   async getAllSpareParts(): Promise<GetSparePartsResponse> {
     const pageSize = 100
-    const items = new Map<string, SparePartDto>()
-    for (let page = 1; page <= 100; page++) {
+    const items: SparePartDto[] = []
+    for (let page = 1; ; page++) {
       const batch = (await sparePartService.getSpareParts({ page, pageSize })).items
-      const before = items.size
-      for (const part of batch) items.set(part.id, part)
-      // A short page is the last one; no new rows means the server is repeating a page
-      if (batch.length < pageSize || items.size === before) break
+      items.push(...batch)
+      if (batch.length < pageSize) break
     }
-    const all = [...items.values()]
-    return { items: all, totalCount: all.length, page: 1, pageSize: all.length }
+    return { items, totalCount: items.length, page: 1, pageSize: items.length }
   },
 
   async getSparePartById(id: string): Promise<SparePartDto> {

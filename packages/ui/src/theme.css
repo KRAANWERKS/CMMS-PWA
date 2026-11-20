@@ -1,0 +1,97 @@
+/* Shared high-contrast status and surface colors, aligned with the technician PWA. */
+:root[data-mantine-color-scheme='light'] {
+  --mantine-color-text: #111418;
+  --mantine-color-dimmed: #454d55;
+  --mantine-color-placeholder: #5f6770;
+  --mantine-color-red-light-color: var(--mantine-color-red-9);
+  --mantine-color-orange-light-color: #9a3412;
+  --mantine-color-yellow-light-color: #7a4600;
+  --mantine-color-teal-light-color: #0b5f48;
+  --mantine-color-blue-light-color: var(--mantine-color-blue-9);
+  --mantine-color-violet-light-color: var(--mantine-color-violet-9);
+  --mantine-color-gray-light-color: var(--mantine-color-gray-9);
+  --mantine-color-dark-light-color: var(--mantine-color-dark-9);
+}
+
+:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-text: #f4f6f8;
+  --mantine-color-dimmed: #c9ced4;
+  --mantine-color-placeholder: #a9b0b8;
+  --mantine-color-red-light-color: var(--mantine-color-red-2);
+  --mantine-color-orange-light-color: var(--mantine-color-orange-2);
+  --mantine-color-yellow-light-color: var(--mantine-color-yellow-2);
+  --mantine-color-teal-light-color: var(--mantine-color-teal-2);
+  --mantine-color-blue-light-color: var(--mantine-color-blue-2);
+  --mantine-color-violet-light-color: var(--mantine-color-violet-2);
+  --mantine-color-gray-light-color: var(--mantine-color-gray-2);
+  --mantine-color-dark-light-color: var(--mantine-color-gray-2);
+}
+
+/* Gradient action buttons. One set of rules for every primary/coloured filled Button, chosen in theme.ts. */
+.cmms-gradient-primary:not(:disabled):not([data-disabled]) {
+  background: linear-gradient(90deg, #f5c518 0%, #ffa903 100%);
+  color: #111827;
+}
+.cmms-gradient-danger:not(:disabled):not([data-disabled]) {
+  background: linear-gradient(90deg, #e03131 0%, #a51111 100%);
+  color: #fff;
+}
+.cmms-gradient-success:not(:disabled):not([data-disabled]) {
+  background: linear-gradient(90deg, #40c057 0%, #2b8a3e 100%);
+  color: #fff;
+}
+.cmms-gradient-info:not(:disabled):not([data-disabled]) {
+  background: linear-gradient(90deg, #4dabf7 0%, #1971c2 100%);
+  color: #fff;
+}
+
+/* Alias kept so any lingering reference to the old class still renders the primary gradient. */
+.cmms-primary-button:not(:disabled):not([data-disabled]) {
+  background: linear-gradient(90deg, #f5c518 0%, #ffa903 100%);
+  color: #111827;
+}
+
+/* Neutral secondary (default-variant) button: no gradient, but the same radius, weight and hover lift,
+   so a modal's Cancel sits correctly beside a gradient primary. A destructive action uses color="red". */
+.cmms-secondary-button:not(:disabled):not([data-disabled]) {
+  font-weight: 650;
+}
+
+.cmms-gradient-primary,
+.cmms-gradient-danger,
+.cmms-gradient-success,
+.cmms-gradient-info,
+.cmms-primary-button,
+.cmms-secondary-button,
+.cmms-action-button {
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .cmms-gradient-primary:not(:disabled):not([data-disabled]):hover,
+  .cmms-gradient-danger:not(:disabled):not([data-disabled]):hover,
+  .cmms-gradient-success:not(:disabled):not([data-disabled]):hover,
+  .cmms-gradient-info:not(:disabled):not([data-disabled]):hover,
+  .cmms-primary-button:not(:disabled):not([data-disabled]):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgb(17 24 39 / 18%);
+    filter: brightness(0.96);
+  }
+  .cmms-secondary-button:not(:disabled):not([data-disabled]):hover,
+  .cmms-action-button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgb(17 24 39 / 18%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmms-gradient-primary,
+  .cmms-gradient-danger,
+  .cmms-gradient-success,
+  .cmms-gradient-info,
+  .cmms-primary-button,
+  .cmms-secondary-button,
+  .cmms-action-button {
+    transition: none;
+  }
+}

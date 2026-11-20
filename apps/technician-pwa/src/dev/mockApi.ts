@@ -35,8 +35,8 @@ const assets: AssetDto[] = [
 
 const day = 86_400_000
 const ago = (days: number) => new Date(Date.now() - days * day).toISOString()
-const task = (n: number, description: string, responseType: WorkOrderDto['tasks'][number]['responseType'], extra: Partial<WorkOrderDto['tasks'][number]> = {}) =>
-  ({ id: `t${n}`, description, status: 'OPEN', responseType, ...extra })
+const task = (n: number, description: string, responseType: WorkOrderDto['tasks'][number]['responseType'], extra: Partial<WorkOrderDto['tasks'][number]> = {}): WorkOrderDto['tasks'][number] =>
+  ({ id: `t${n}`, description, status: 'OPEN', responseType, assetLinkMode: 'NONE', minimumPhotoCount: 0, attachments: [], referenceAttachments: [], ...extra })
 
 function wo(n: number, siteId: string, assetId: string, title: string, status: string, priority: string, workType: string, tasks: WorkOrderDto['tasks'], extra: Partial<WorkOrderDto> = {}): WorkOrderDto {
   const a = assets.find(item => item.id === assetId)!
@@ -49,15 +49,16 @@ function wo(n: number, siteId: string, assetId: string, title: string, status: s
 
 const workOrders: WorkOrderDto[] = [
   wo(1, 'site-vessel', 'a1', 'Main engine 250h service', 'IN_PROGRESS', 'HIGH', 'PREVENTIVE', [
-    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED', attachments: [{ id: 'att-1', fileName: 'tagout.png', contentType: 'image/png' }] }),
+    task(1, 'Isolate and tag out the engine', 'CHECKBOX', { status: 'COMPLETED', attachments: [{ id: 'att-1', fileName: 'tagout.png', contentType: 'image/png', contentUrl: '' }] }),
     task(2, 'Record lube oil pressure', 'NUMBER', {
       unit: 'bar', minimumValue: 3, maximumValue: 6,
       linkedMeasurementPoint: { id: 'mp-1', name: 'Lube oil pressure', measurementType: 'PRESSURE', unit: 'bar', normalMinimum: 3.5, normalMaximum: 5.5 },
-      referenceAttachments: [{ id: 'ref-1', fileName: 'Gauge location.png', contentType: 'image/png' }, { id: 'ref-2', fileName: 'Service manual.pdf', contentType: 'application/pdf' }],
+      referenceAttachments: [{ id: 'ref-1', fileName: 'Gauge location.png', contentType: 'image/png', contentUrl: '' }, { id: 'ref-2', fileName: 'Service manual.pdf', contentType: 'application/pdf', contentUrl: '' }],
     }),
-    task(3, 'Replace lube oil filter', 'CHECKBOX'),
-    task(4, 'Oil condition', 'SELECT', { responseOptions: 'Clean, Dark, Contaminated' }),
-    task(5, 'Record running hours', 'NUMBER', { unit: 'h', linkedMeter: { id: 'mock-meter-1', name: 'Running hours', unit: 'h' } }),
+    task(20, 'Lube oil service', 'GROUP', { instructionReferenceKey: 'grp-lube' }),
+    task(3, 'Replace lube oil filter', 'CHECKBOX', { parentInstructionReferenceKey: 'grp-lube', minimumPhotoCount: 1 }),
+    task(4, 'Oil condition', 'SELECT', { responseOptions: 'Clean, Dark, Contaminated', parentInstructionReferenceKey: 'grp-lube' }),
+    task(5, 'Record running hours', 'NUMBER', { unit: 'h', linkedMeter: { id: 'mock-meter-1', name: 'Running hours', unit: 'h', currentReading: 25160, maxAllowed: 25328 } }),
     task(6, 'Findings and remarks', 'TEXT'),
   ], { description: 'Scheduled 250 hour service for the port main engine.', actualStart: ago(0.1), usage: [{ partNumber: 'FLT-OIL-LF3000', quantity: 2 }] }),
   wo(2, 'site-vessel', 'a4', 'Hydraulic leak at crane power pack', 'OPEN', 'CRITICAL', 'CORRECTIVE', [
@@ -97,8 +98,8 @@ const workOrders: WorkOrderDto[] = [
 
 const transitionsFor = (status: string) =>
   status === 'OPEN' || status === 'ASSIGNED' ? ['IN_PROGRESS']
-    // Technicians can only start or complete; the real server answers 403 for ON_HOLD and other statuses
-    : status === 'IN_PROGRESS' ? ['COMPLETED'] : []
+    // Start and complete for technicians; cancel needs close rights on the real server (shown here for supervisors)
+    : status === 'IN_PROGRESS' ? ['COMPLETED', 'CANCELLED'] : []
 const syncTransitions = (item: WorkOrderDto) => { item.allowedTransitions = transitionsFor(item.status) }
 workOrders.forEach(syncTransitions)
 
@@ -186,7 +187,7 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
       const task = workOrders.find(w => w.id === m![1])?.tasks.find(x => x.id === m![2])
       if (!task) throw new HttpError(404, 'Task not found')
       const file = body.file as File | undefined
-      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: file?.name ?? 'photo.jpg', contentType: file?.type || 'image/jpeg', fileSize: file?.size, checksumSha256: body.sha as string | undefined }]
+      task.attachments = [...(task.attachments ?? []), { id: `mock-att-${Date.now()}`, fileName: file?.name ?? 'photo.jpg', contentType: file?.type || 'image/jpeg', fileSize: file?.size, checksumSha256: body.sha as string | undefined, contentUrl: '' }]
       return null
     }
     if ((m = url.match(/^\/assets\/([^/]+)\/meter-readings$/))) {
@@ -209,9 +210,13 @@ function handle(method: string, url: string, params: Record<string, unknown>, bo
         item.status = String(body.newStatus)
         if (item.status === 'IN_PROGRESS' && !item.actualStart) item.actualStart = new Date().toISOString()
       } else if (m[2] === 'labor') {
+        // Same rule as RecordWorkOrderLaborCommandValidator
+        if (!(Number(body.hours) > 0 && Number(body.hours) <= 24)) throw new HttpError(400, 'Validation Failed')
         item.labor.push({ id: `l${item.labor.length + 1}`, hours: Number(body.hours), workedAt: String(body.workedAt), notes: body.note as string | undefined })
         item.totalLaborHours = Math.round((item.totalLaborHours + Number(body.hours)) * 100) / 100
       } else {
+        if (!item.labor.length) throw new HttpError(400, 'Record labor before completing the work order.')
+        if (item.tasks.some(x => !['INFORMATION', 'GROUP'].includes(x.responseType) && x.status !== 'COMPLETED')) throw new HttpError(400, 'Complete all work-order tasks first.')
         item.status = 'COMPLETED'
       }
       item.version++

@@ -4,7 +4,7 @@ import { Badge, Button, Group, Paper, Stack, Text } from '@mantine/core'
 import { IconChevronRight, IconGauge } from '@tabler/icons-react'
 import { useNavigate } from 'react-router-dom'
 import { monitoringService, getApiError, type MonitoringItemDto } from '@cmms/api-client'
-import { CMMSEmptyState, CMMSErrorState } from '@cmms/ui'
+import { CMMSEmptyState, CMMSErrorState, formatDate } from '@cmms/ui'
 import { useTechnicianSite } from '../context/TechnicianSiteContext'
 import { ListSkeleton } from '../components/Skeletons'
 
@@ -90,7 +90,7 @@ export default function ReadingsDue() {
                         <div style={{ minWidth: 0 }}>
                           <Text size="sm">{point.measurement}{unitText(point.unit)}</Text>
                           <Text size="xs" c="dimmed">
-                            {point.completedAt ? `Last read ${new Date(point.completedAt).toLocaleDateString()}${point.latestValue != null ? ` · ${point.latestValue}${unitText(point.unit)}` : ''}` : 'Never read'}
+                            {point.completedAt ? `Last read ${formatDate(point.completedAt)}${point.latestValue != null ? ` · ${point.latestValue}${unitText(point.unit)}` : ''}` : 'Never read'}
                           </Text>
                         </div>
                         <Badge size="xs" variant="light" color={fresh.color} style={{ flexShrink: 0 }}>{fresh.label}</Badge>
